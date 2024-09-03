@@ -173,7 +173,7 @@ FEATURE_STORE_METADATA = [
     {"name": "ppr_position_rank", "friendly_name": "PPR Position Rank", "description": "PPR Fantasy Rank by Position Group", "dtype": "Int32", "type_group": "Target", "selectable": False},
 ]
 
-EXPERIMENT_CLASSES = ['fantasy_football']
+EXPERIMENT_CLASSES = ['fantasy_football','event_quarters']
 YEARS = [2022, 2023, 2024]
 POSITIONS = ['QB', 'RB', 'TE', 'WR']
 TARGET = ['fantasy_points']

@@ -1,22 +1,39 @@
 import os
-import pyarrow as pa
-from src.feature_stores.player_season import make_season_feature_store
-from src.utils import put_dataframe, get_dataframe
 
+import pandas as pd
+import pyarrow as pa
+
+from src.feature_stores.event_regular_season_game import make_event_regular_season_feature_store
+from src.utils import put_dataframe, get_seasons_to_update, get_dataframe
+
+
+FEATURE_STORE_METAS = [
+    {
+        "name":'event/regular_season_game',
+        "start_season": 2002,
+        "obj": make_event_regular_season_feature_store
+    }
+]
 
 def main():
+
     root_path = './data/feature_store'
+    for fs_meta_obj in FEATURE_STORE_METAS:
+        feature_store_name = fs_meta_obj['name']
+        start_season = fs_meta_obj['start_season']
+        ## Determine pump mode
+        update_seasons = get_seasons_to_update(root_path, feature_store_name)
+        mode = 'refresh' if start_season in update_seasons else 'upsert'
 
-    fs_df = make_season_feature_store()
-    fs_type_path = 'player/season'
-    fs_file_name = 'fs.parquet'
-    path = f"{root_path}/{fs_type_path}/{fs_file_name}"
+        # Use the last 2 seasons for aggregate stats for upsert mode
+        load_seasons = update_seasons if mode == 'refresh' else list(range(min(update_seasons) - 2, max(update_seasons)+1))
 
-    put_dataframe(fs_df, path)
+        print(f"Running Feature Store: {feature_store_name} from {min(update_seasons)}-{max(update_seasons)} (loads: {min(load_seasons)}-{max(load_seasons)})")
 
-    fs_df = get_dataframe(path, columns=['player_id','display_name','position_group','total_last_year_position_rank','total_last_year_fantasy_points','total_last_year_games_played'])
-
-
+        fs_df = fs_meta_obj['obj'](load_seasons)
+        print(f"Adds: {round(fs_df.memory_usage(deep=True).sum() / (1024 ** 2), 2)} MB to the Feature Store")
+        for season in update_seasons:
+            put_dataframe(fs_df[fs_df.season==season].copy(), f"{root_path}/{feature_store_name}/{season}.parquet")
 
 if __name__ == '__main__':
     main()

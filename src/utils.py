@@ -60,78 +60,56 @@ def create_dataframe(obj, schema: dict):
         df[column] = df[column].astype(dtype)
     return df
 
-def get_meta_cols(target):
-    return [
-    'player_id',
-    'season',
-    target,
-    'display_name',
-    'position_group'
-]
+def get_seasons_to_update(root_path, feature_store_name):
+    """
+    Get a list of seasons to update based on the root path and sport.
 
-def train_test_split(feature_store_df, position, year, target, holdout=False):
-    train_years = list(range(2010, year - 1))
-    holdout_year = year - 1
-    test_year = year
-    meta_cols = [
-        'player_id',
-        'season',
-        'fantasy_points',
-        'display_name',
-        'college_name',
-        'birth_date',
-        'entry_year',
-        'position',
-        'position_group'
-    ]
+    Args:
+        root_path (str): Root path for the sport data.
+        sport (ESPNSportTypes): Type of sport.
 
-    # Filter for the specific position
-    pos_df = feature_store_df[feature_store_df['position_group'] == position].copy()
-
-    if position == 'QB':
-        filt = (pos_df['total_last_year_completions'] >= 0) | (pos_df['total_2_years_ago_completions'] >= 0) | (pos_df['years_of_experience'] == 0)
-        print("Records Dropped during train-test split: ",pos_df.shape[0] - sum(filt))
-        pos_df = pos_df[filt].copy()
-    elif position == 'RB':
-        filt = (pos_df['total_last_year_carries'] >= 0) | (pos_df['total_2_years_ago_carries'] >= 0) | (pos_df['years_of_experience'] == 0)
-        print("Records Dropped during train-test split: ",pos_df.shape[0] - sum(filt))
-        pos_df = pos_df[filt].copy()
-    elif position == 'WR':
-        filt = (pos_df['total_last_year_receptions'] >= 0) | (pos_df['total_2_years_ago_receptions'] >= 0) | (pos_df['years_of_experience'] == 0)
-        print("Records Dropped during train-test split: ",pos_df.shape[0] - sum(filt))
-        pos_df = pos_df[filt].copy()
-    elif position == 'TE':
-        filt = (pos_df['total_last_year_receptions'] >= 0) | (pos_df['total_2_years_ago_receptions'] >= 0) | (pos_df['years_of_experience'] == 0)
-        print("Records Dropped during train-test split: ",pos_df.shape[0] - sum(filt))
-        pos_df = pos_df[filt].copy()
-
-    # Split the data
-    train_df = pos_df[pos_df['season'].isin(train_years)].copy()
-    holdout_df = pos_df[pos_df['season'] == holdout_year].copy()
-    test_df = pos_df[pos_df['season'] == test_year].copy()
-
-    cols_to_drop = list(set(meta_cols + list(train_df.select_dtypes(exclude=[np.number]).columns)))
-    if target == 'fantasy_points':
-        cols_to_drop.extend([col for col in train_df.columns if 'ppr' in col] + ['position_rank', 'avg_last_year_fantasy_points'])
-    elif target == 'fantasy_points_ppr':
-        cols_to_drop.extend([col for col in train_df.columns if 'fantasy_points' in col and 'ppr' not in col]  + ['ppr_position_rank', 'avg_last_year_ppr_fantasy_points'])
+    Returns:
+        List: List of seasons to update.
+    """
+    current_season = find_year_for_season()
+    if os.path.exists(f'{root_path}/{feature_store_name}'):
+        seasons = os.listdir(f'{root_path}/{feature_store_name}')
+        fs_season = -1
+        for season in seasons:
+            temp = int(season.split('.')[0])
+            if temp > fs_season:
+                fs_season = temp
     else:
-        Exception('Invalid target variable: Accepted values are "fantasy_points" or "fantasy_points_ppr"')
-    #print(cols_to_drop)
-    # Define features and target variable
-    X_train = train_df.drop(columns=cols_to_drop)
-    y_train = train_df[target]
+        fs_season = 2002
+    return list(range(fs_season, current_season + 1))
 
-    X_test = test_df.drop(columns=cols_to_drop)
-    y_test = test_df[target]
 
-    if holdout:
-        X_holdout = holdout_df.drop(columns=cols_to_drop)
-        y_holdout = holdout_df[target]
+def find_year_for_season( date: datetime.datetime = None):
+    """
+    Find the year for a specific season based on the league and date.
+
+    Args:
+        league (ESPNSportTypes): Type of sport.
+        date (datetime.datetime): Date for the sport (default is None).
+
+    Returns:
+        int: Year for the season.
+    """
+    SEASON_START_MONTH = {
+
+        "NFL": {'start': 8, 'wrap': False},
+    }
+    if date is None:
+        today = datetime.datetime.utcnow()
     else:
-        X_holdout = None
-        y_holdout = None
-        X_train = pd.concat([X_train, holdout_df.drop(columns=cols_to_drop)])
-        y_train = pd.concat([y_train, holdout_df[target]])
-
-    return X_train, y_train, X_holdout, y_holdout, X_test, y_test, test_df[get_meta_cols(target)]
+        today = date
+    start = SEASON_START_MONTH["NFL"]['start']
+    wrap = SEASON_START_MONTH["NFL"]['wrap']
+    if wrap and start - 1 <= today.month <= 12:
+        return today.year + 1
+    elif not wrap and start == 1 and today.month == 12:
+        return today.year + 1
+    elif not wrap and not start - 1 <= today.month <= 12:
+        return today.year - 1
+    else:
+        return today.year
