@@ -3,7 +3,7 @@ name: Feature Store Data trigger
 
 on:
   schedule:
-    - cron: '0 12 * * *' # runs at 12:00 UTC every Day (7AM EST)
+    - cron: '0 10 * * *' # runs at 10:00 UTC every Day (6AM EST)
   workflow_dispatch:
 
 jobs:

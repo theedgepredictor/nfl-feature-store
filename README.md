@@ -1,6 +1,44 @@
 # nfl-feature-store
 
-### Data Pipeline
+****
+
+[![Feature Store Data trigger](https://github.com/theedgepredictor/nfl-feature-store/actions/workflows/feature_store_data_trigger.yaml/badge.svg)](https://github.com/theedgepredictor/nfl-feature-store/actions/workflows/feature_store_data_trigger.yaml)
+
+## ETL Process for generating NFL Feature Stores for downstream ML models
+
+****
+
+
+## Event Based Feature Stores
+
+**Regular Season Game**
+- Pre Game Elo Rating
+- Vegas Lines
+- Rolling Avg EPA (last 10)
+- Rolling Avg Points (last 10)
+- Avg Vegas Cover (last 10)
+
+**Post Season Game**
+- Coming Soon
+
+****
+
+## Player Based Feature Stores
+
+**Season**
+- Coming Soon
+
+**Game**
+- Coming Soon
+
+****
+
+### Data Sources
+- Play by Play: [NFLVerse](https://github.com/nflverse/nflverse-data)
+- Schedule: [NFLGameData](http://www.habitatring.com/schedule.php)
+- ELO: [TheEdgePredictor](https://github.com/theedgepredictor/elo-rating)
+
+### Wishful Thinking Data Sources
 
 **Collect Player data and dump as parquet**
 - Add career stats as attributes
@@ -9,18 +47,4 @@
 - Add PFR advanced stats as attributes
 - Add Madden Ratings as attributes
 
-### Backend
 
-**Hosted ML Model**
-
-### Frontend
-
-**Streamlit App**
-
-Will be broken into its own microservices but currently were just going to build out a PoC. 
-
-1. Make a baseline model that uses a function to estimate points
-2. Make a way to load a position, a team and look at all the features for a specific player
-3. Make a 'Create a Model' button to allow a user to select features from the feature store and run those through a simple RandomForest Regressor
-4. Add a way to save these attributes which will download the .txt of the attributes to the users computer. Now they have a way to reload their model
-5. Once model is trained we will need to show feature attributions
