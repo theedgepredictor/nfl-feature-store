@@ -198,7 +198,7 @@ def make_cover_feature(schedule):
     schedule['home_team_covered'] = (schedule['home_score'] - schedule['spread_line'] >= schedule['away_score']).astype(int)
     schedule['under_covered'] = (schedule['home_score'] + schedule['away_score'] <= schedule['total_line']).astype(int)
 
-    folded_df = schedule.drop(columns=['home_team_win', 'away_team_spread', 'total_target'])
+    folded_df = schedule.drop(columns=['away_team_win', 'away_team_spread', 'total_target'])
     folded_df['ishome'] = folded_df['home_team']
     # Fold the DataFrame to treat home and away teams equally
     folded_df = df_rename_fold(folded_df, 'home_', 'away_')
@@ -224,7 +224,7 @@ def preprocess(data, schedule, elo):
 
     s = schedule[['season', 'week', 'home_team', 'away_team', 'home_score', 'away_score', 'spread_line', 'total_line']].drop_duplicates().reset_index(drop=True) \
         .assign(
-        home_team_win=lambda x: (x.home_score > x.away_score),
+        away_team_win=lambda x: (x.home_score < x.away_score),
         away_team_spread=lambda x: (x.home_score - x.away_score),
         total_target=lambda x: (x.home_score + x.away_score),
     )
@@ -265,7 +265,7 @@ def preprocess(data, schedule, elo):
     df = df[~((df.season == df.season.min()) & (df.week == df.week.min()))].copy()
     # Remove where the spread or total line is missing and games havent happened yet
     df = df.dropna()
-    df[['home_team_win', 'away_team_spread', 'total_target', 'away_team_covered_spread', 'under_covered']] = df[['home_team_win', 'away_team_spread', 'total_target', 'away_team_covered_spread', 'under_covered']].astype(int)
+    df[['away_team_win', 'away_team_spread', 'total_target', 'away_team_covered_spread', 'under_covered']] = df[['away_team_win', 'away_team_spread', 'total_target', 'away_team_covered_spread', 'under_covered']].astype(int)
 
     # Make Inference set
     inference_df = s[((s.home_score.isnull()) & (s.away_score.isnull()) & (s.spread_line.notna()) & (s.total_line.notna()))].copy()
