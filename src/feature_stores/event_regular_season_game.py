@@ -90,10 +90,10 @@ def make_rushing_epa(data):
     rushing_defense_epa['epa_shifted'] = rushing_defense_epa.groupby('defteam')['epa'].shift()
 
     # Calculate dynamic window EWMA
-    rushing_offense_epa['ewma_dynamic_window_rushing'] = rushing_offense_epa.groupby('posteam') \
+    rushing_offense_epa['ewma_rushing'] = rushing_offense_epa.groupby('posteam') \
         .apply(dynamic_window_ewma).values
 
-    rushing_defense_epa['ewma_dynamic_window_rushing'] = rushing_defense_epa.groupby('defteam') \
+    rushing_defense_epa['ewma_rushing'] = rushing_defense_epa.groupby('defteam') \
         .apply(dynamic_window_ewma).values
 
     # Merge offense and defense EPA
@@ -102,7 +102,7 @@ def make_rushing_epa(data):
         on=['team', 'season', 'week'],
         suffixes=('_offense', '_defense')
     )
-    features = [column for column in rushing_epa.columns if 'ewma' in column and 'dynamic' in column] + ['team', 'season', 'week']
+    features = [column for column in rushing_epa.columns if 'ewma' in column] + ['team', 'season', 'week']
 
     return rushing_epa[features]
 
@@ -128,10 +128,10 @@ def make_passing_epa(data):
     passing_offense_epa['epa_shifted'] = passing_offense_epa.groupby('posteam')['epa'].shift()
     passing_defense_epa['epa_shifted'] = passing_defense_epa.groupby('defteam')['epa'].shift()
 
-    passing_offense_epa['ewma_dynamic_window_passing'] = passing_offense_epa.groupby('posteam') \
+    passing_offense_epa['ewma_passing'] = passing_offense_epa.groupby('posteam') \
         .apply(dynamic_window_ewma).values
 
-    passing_defense_epa['ewma_dynamic_window_passing'] = passing_defense_epa.groupby('defteam') \
+    passing_defense_epa['ewma_passing'] = passing_defense_epa.groupby('defteam') \
         .apply(dynamic_window_ewma).values
 
     # Merge offense and defense EPA
@@ -140,7 +140,7 @@ def make_passing_epa(data):
         on=['team', 'season', 'week'],
         suffixes=('_offense', '_defense')
     )
-    features = [column for column in passing_epa.columns if 'ewma' in column and 'dynamic' in column] + ['team', 'season', 'week']
+    features = [column for column in passing_epa.columns if 'ewma' in column] + ['team', 'season', 'week']
 
     return passing_epa[features]
 
@@ -166,10 +166,10 @@ def make_score_feature(data):
     passing_offense_epa['epa_shifted'] = passing_offense_epa.groupby('posteam')['posteam_score_post'].shift()
     passing_defense_epa['epa_shifted'] = passing_defense_epa.groupby('defteam')['defteam_score_post'].shift()
 
-    passing_offense_epa['ewma_dynamic_window_score'] = passing_offense_epa.groupby('posteam') \
+    passing_offense_epa['ewma_score'] = passing_offense_epa.groupby('posteam') \
         .apply(dynamic_window_ewma).values
 
-    passing_defense_epa['ewma_dynamic_window_score'] = passing_defense_epa.groupby('defteam') \
+    passing_defense_epa['ewma_score'] = passing_defense_epa.groupby('defteam') \
         .apply(dynamic_window_ewma).values
 
     # Merge offense and defense EPA
@@ -178,7 +178,7 @@ def make_score_feature(data):
         on=['team', 'season', 'week'],
         suffixes=('_offense', '_defense')
     )
-    features = [column for column in passing_epa.columns if 'ewma' in column and 'dynamic' in column] + ['team', 'season', 'week']
+    features = [column for column in passing_epa.columns if 'ewma' in column] + ['team', 'season', 'week']
 
     return passing_epa[features]
 
@@ -213,8 +213,8 @@ def make_cover_feature(schedule):
 
     # Calculate the rolling average of the last 10 games for going under the total
     folded_df['rolling_under_cover'] = folded_df.groupby('team')['under_covered'].shift(1).rolling(10, min_periods=1).mean().reset_index(drop=True)
-    home_a = folded_df[folded_df.ishome == True][['season', 'week', 'team', 'rolling_team_cover', 'rolling_under_cover']].rename(columns={'team': 'home_team', 'rolling_team_cover': 'rolling_home_team_spread_cover', 'rolling_under_cover': 'rolling_home_team_under_cover'})
-    away_a = folded_df[folded_df.ishome == False][['season', 'week', 'team', 'rolling_team_cover', 'rolling_under_cover']].rename(columns={'team': 'away_team', 'rolling_team_cover': 'rolling_away_team_spread_cover', 'rolling_under_cover': 'rolling_away_team_under_cover'})
+    home_a = folded_df[folded_df.ishome == True][['season', 'week', 'team', 'rolling_team_cover', 'rolling_under_cover']].rename(columns={'team': 'home_team', 'rolling_team_cover': 'home_rolling_spread_cover', 'rolling_under_cover': 'home_rolling_under_cover'})
+    away_a = folded_df[folded_df.ishome == False][['season', 'week', 'team', 'rolling_team_cover', 'rolling_under_cover']].rename(columns={'team': 'away_team', 'rolling_team_cover': 'away_rolling_spread_cover', 'rolling_under_cover': 'away_rolling_under_cover'})
     return away_a, home_a
 
 
@@ -259,6 +259,14 @@ def preprocess(data, schedule, elo):
         suffixes=('_home', '_away')
     )
 
+    # Suffix to prefix
+    df.columns = [
+        'home_' + col.replace('_home', '') if '_home' in col else
+        'away_' + col.replace('_away', '') if '_away' in col else
+        col
+        for col in df.columns
+    ]
+
     df = df.merge(away_a, on=['season', 'week', 'away_team'], how='left').merge(home_a, on=['season', 'week', 'home_team'], how='left')
 
     # Remove the first week of the dataset since it is used as aggregate
@@ -282,11 +290,19 @@ def preprocess(data, schedule, elo):
         suffixes=('_home', '_away')
     )
 
+    # Suffix to prefix
+    inference_df.columns = [
+        'home_' + col.replace('_home', '') if '_home' in col else
+        'away_' + col.replace('_away', '') if '_away' in col else
+        col
+        for col in inference_df.columns
+    ]
+
     df = pd.concat([df, inference_df])
     elo = pd.merge(elo[['id', 'away_elo_pre', 'away_elo_prob', 'home_elo_pre', 'home_elo_prob']], schedule[['espn', 'away_team', 'home_team', 'season', 'week']].rename(columns={'espn': 'id'}), on=['id'], how='inner').drop(columns=['id'])
 
     df = df.merge(elo, on=['season', 'week', 'away_team', 'home_team'], how='left')
-
+    print(df.columns)
     return df
 
 
