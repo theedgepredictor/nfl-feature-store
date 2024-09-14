@@ -4,16 +4,26 @@ import pandas as pd
 import pyarrow as pa
 
 from src.feature_stores.event_regular_season_game import make_event_regular_season_feature_store
-from src.utils import put_dataframe, get_seasons_to_update, get_dataframe
+from src.feature_stores.player_game import make_player_game_feature_store
+from src.utils import put_dataframe, get_seasons_to_update
 
+player_meta = {
+    "name": 'player/game',
+    "start_season": 2002,
+    "obj": make_player_game_feature_store
+}
 
-FEATURE_STORE_METAS = [
-    {
-        "name":'event/regular_season_game',
-        "start_season": 2002,
-        "obj": make_event_regular_season_feature_store
+event_meta = {
+    "name":'event/regular_season_game',
+    "start_season": 2002,
+    "obj": make_event_regular_season_feature_store
     }
+FEATURE_STORE_METAS = [
+    player_meta,
+    event_meta
 ]
+
+
 
 def main():
 

@@ -55,7 +55,7 @@ def load_data(load_seasons):
 
 def dynamic_window_ewma(x):
     """
-    Calculate rolling exponentially weighted EPA with a dynamic window size
+    Calculate rolling exponentially weighted features with a dynamic window size
     """
     values = np.zeros(len(x))
     for i, (_, row) in enumerate(x.iterrows()):
@@ -64,6 +64,20 @@ def dynamic_window_ewma(x):
             values[i] = epa.ewm(min_periods=1, span=row.week).mean().values[-1]
         else:
             values[i] = epa.ewm(min_periods=1, span=10).mean().values[-1]
+
+    return pd.Series(values, index=x.index)
+
+def dynamic_window_rolling(x):
+    """
+    Calculate rolling features with a dynamic window size
+    """
+    values = np.zeros(len(x))
+    for i, (_, row) in enumerate(x.iterrows()):
+        epa = x.epa_shifted[:i + 1]
+        if row.week > 10:
+            values[i] = epa.rolling(min_periods=1, window=row.week).mean().values[-1]
+        else:
+            values[i] = epa.rolling(min_periods=1, window=10).mean().values[-1]
 
     return pd.Series(values, index=x.index)
 
