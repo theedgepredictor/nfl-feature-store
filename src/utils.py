@@ -115,3 +115,29 @@ def find_year_for_season( date: datetime.datetime = None):
         return today.year - 1
     else:
         return today.year
+
+def df_rename_fold(df, t1_prefix, t2_prefix):
+    '''
+    The reverse of a df_rename_pivot
+    Fold two prefixed column types into one generic type
+    Ex: away_team_id and home_team_id -> team_id
+    '''
+    try:
+        t1_all_cols = [i for i in df.columns if t2_prefix not in i]
+        t2_all_cols = [i for i in df.columns if t1_prefix not in i]
+
+        t1_cols = [i for i in df.columns if t1_prefix in i]
+        t2_cols = [i for i in df.columns if t2_prefix in i]
+        t1_new_cols = [i.replace(t1_prefix, '') for i in df.columns if t1_prefix in i]
+        t2_new_cols = [i.replace(t2_prefix, '') for i in df.columns if t2_prefix in i]
+
+        t1_df = df[t1_all_cols].rename(columns=dict(zip(t1_cols, t1_new_cols)))
+        t2_df = df[t2_all_cols].rename(columns=dict(zip(t2_cols, t2_new_cols)))
+
+        df_out = pd.concat([t1_df, t2_df]).reset_index().drop(columns='index')
+        return df_out
+    except Exception as e:
+        print("--df_rename_fold-- " + str(e))
+        print(f"columns in: {df.columns}")
+        print(f"shape: {df.shape}")
+        return df
