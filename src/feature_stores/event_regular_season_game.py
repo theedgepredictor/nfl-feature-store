@@ -60,14 +60,16 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
     # Calculate if the game covered the under
     s['under_covered'] = (s['home_score'] + s['away_score'] <= s['total_line'])
 
-    epa = make_general_group_features(data)
+    epa = make_score_feature(data)
+
+    a = make_weekly_avg_group_features(off_weekly, def_weekly)
+    b = make_rushing_epa(data)
+    c = make_passing_epa(data)
+    d = make_avg_penalty_group_features(data)
+    e = make_general_group_features(data)
 
     groups = [
-        make_weekly_avg_group_features(off_weekly, def_weekly),
-        make_rushing_epa(data),
-        make_passing_epa(data),
-        make_avg_penalty_group_features(data),
-        make_score_feature(data),
+        a,b,c,d,e
     ]
 
     for group in groups:

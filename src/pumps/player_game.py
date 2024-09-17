@@ -6,6 +6,7 @@ import pandas as pd
 ###########################################################
 ## Loaders
 ###########################################################
+from src.extract import load_mult_lats, get_play_by_play, load_players
 from src.utils import get_seasons_to_update
 
 ## From: https://github.com/nflverse/nflfastR/blob/master/R/aggregate_game_stats.R
@@ -59,74 +60,6 @@ def decode_player_ids(data):
 
     return data
 
-
-def get_play_by_play(season):
-    try:
-        data = pd.read_parquet(f'https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_{season}.parquet')
-        data.fillna(-1000000, inplace=True)
-        data.replace(-1000000, None, inplace=True)
-        ## Fixes
-        data['quarter_seconds_remaining'] = data['quarter_seconds_remaining'].ffill()
-        data['game_seconds_remaining'] = data['game_seconds_remaining'].ffill()
-
-        #############################################################################################
-        ## Attrs
-        #############################################################################################
-        data['is_redzone'] = data['yardline_100'] <= 20
-        data['is_middle_8'] = ((data['qtr'] == 2) & (data['quarter_seconds_remaining'] <= 60 * 4)) | (data['qtr'] == 3) & (data['quarter_seconds_remaining'] >= (60 * 15) - (60 * 4))
-        data['is_third_and_short'] = (data['down'] == 3) & (data['ydstogo'] < 3)
-        data['is_third_and_medium'] = (data['down'] == 3) & (data['ydstogo'] >= 3) & (data['ydstogo'] < 7)
-        data['is_third_and_long'] = (data['down'] == 3) & (data['ydstogo'] >= 7)
-        data['sack_yards'] = None
-        data.loc[data.sack == 1, 'sack_yards'] = data.loc[data.sack == 1, 'yards_gained']
-        ### Pass attrs
-        data['short_left_pass'] = (data['pass_length'] == 'short') & (data['pass_location'] == 'left')
-        data['short_middle_pass'] = (data['pass_length'] == 'short') & (data['pass_location'] == 'middle')
-        data['short_right_pass'] = (data['pass_length'] == 'short') & (data['pass_location'] == 'right')
-        data['deep_left_pass'] = (data['pass_length'] == 'deep') & (data['pass_location'] == 'left')
-        data['deep_middle_pass'] = (data['pass_length'] == 'deep') & (data['pass_location'] == 'middle')
-        data['deep_right_pass'] = (data['pass_length'] == 'deep') & (data['pass_location'] == 'right')
-        data = data.drop(columns=['pass_length', 'pass_location'])
-
-        ### Rush attrs
-        data['left_end_rush'] = (data['run_location'] == 'left') & (data['run_gap'] == 'end')
-        data['left_guard_rush'] = (data['run_location'] == 'left') & (data['run_gap'] == 'guard')
-        data['left_tackle_rush'] = (data['run_location'] == 'left') & (data['run_gap'] == 'tackle')
-        data['right_end_rush'] = (data['run_location'] == 'right') & (data['run_gap'] == 'end')
-        data['right_guard_rush'] = (data['run_location'] == 'right') & (data['run_gap'] == 'guard')
-        data['right_tackle_rush'] = (data['run_location'] == 'right') & (data['run_gap'] == 'tackle')
-        data = data.drop(columns=['run_location', 'run_gap'])
-        return data
-    except:
-        return pd.DataFrame()
-
-
-def load_players():
-    df = pd.read_parquet('https://github.com/nflverse/nflverse-data/releases/download/players/players.parquet')
-    return df
-
-
-def load_mult_lats():
-    mult_lats = pd.read_csv("https://github.com/nflverse/nflverse-data/releases/download/misc/multiple_lateral_yards.csv")
-
-    # Step 1: Extract 'season' and 'week' from 'game_id'
-    mult_lats['season'] = mult_lats['game_id'].str.slice(0, 4).astype(int)
-    mult_lats['week'] = mult_lats['game_id'].str.slice(5, 7).astype(int)
-
-    # Step 2: Filter rows where 'yards' is not 0
-    mult_lats = mult_lats[mult_lats['yards'] != 0]
-
-    # Step 3: Group by 'game_id' and 'play_id' and remove the last entry in each group
-    mult_lats = mult_lats.groupby(['game_id', 'play_id']).apply(lambda x: x.iloc[:-1]).reset_index(drop=True)
-
-    # Step 4: Handle cases where a player collects lateral yards multiple times
-    # Group by 'season', 'week', 'type', and 'gsis_player_id' and aggregate the 'yards'
-    mult_lats_aggregated = (
-        mult_lats.groupby(['season', 'week', 'type', 'gsis_player_id'])
-            .agg({'yards': 'sum'})
-            .reset_index()
-    )
-    return mult_lats_aggregated
 
 ###########################################################
 ## Preprocessing

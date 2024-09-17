@@ -57,7 +57,7 @@ def make_rushing_epa(data):
         DataFrame: Combined dataframe containing offensive and defensive rushing EPA values.
     """
     # Separate EPA into rushing offense and defense
-    rushing_offense_epa = data.loc[data['rush_attempt'] == 1, :] \
+    rushing_offense_epa = data.loc[(data['play_type'].isin(['run', 'qb_kneel'])), :] \
         .groupby(['posteam', 'season', 'week'], as_index=False)['epa'].mean()
 
     rushing_defense_epa = data.loc[data['rush_attempt'] == 1, :] \
@@ -96,10 +96,10 @@ def make_passing_epa(data):
         DataFrame: Combined dataframe containing offensive and defensive passing EPA values.
     """
     # Separate EPA into passing offense and defense
-    passing_offense_epa = data.loc[data['pass_attempt'] == 1, :] \
+    passing_offense_epa = data.loc[(data['play_type'].isin(['pass', 'qb_spike'])), :] \
         .groupby(['posteam', 'season', 'week'], as_index=False)['epa'].mean()
 
-    passing_defense_epa = data.loc[data['pass_attempt'] == 1, :] \
+    passing_defense_epa = data.loc[(data['play_type'].isin(['pass', 'qb_spike'])), :] \
         .groupby(['defteam', 'season', 'week'], as_index=False)['epa'].mean()
 
     # Lag EPA one period back
@@ -133,10 +133,16 @@ def make_score_feature(data):
         DataFrame: Combined dataframe containing offensive and defensive score values with EWMA.
     """
     # Separate EPA into passing offense and defense
-    passing_offense_epa = data \
+    passing_offense_epa = data[
+        (~data['down'].isna()) &
+        (data['play_type'].isin(['pass', 'qb_kneel', 'qb_spike', 'run']))
+        ].copy() \
         .groupby(['posteam', 'season', 'week'], as_index=False)['posteam_score_post'].last()
 
-    passing_defense_epa = data \
+    passing_defense_epa = data[
+        (~data['down'].isna()) &
+        (data['play_type'].isin(['pass', 'qb_kneel', 'qb_spike', 'run']))
+        ].copy() \
         .groupby(['defteam', 'season', 'week'], as_index=False)['defteam_score_post'].last()
 
     # Lag EPA one period back
@@ -300,7 +306,10 @@ def make_general_group_features(data):
         'drive': 'nunique',  # Number of unique drives in the quarter
         'series': 'nunique',  # Number of unique series in the quarter
     }
-    general_features = data.copy()
+    general_features = data[
+        (~data['down'].isna()) &
+        (data['play_type'].isin(['pass', 'qb_kneel', 'qb_spike', 'run']))
+        ].copy()
     general_features['turnover'] = general_features['fumble_lost'] + general_features['interception']
     general_features = make_avg_group_features(general_features, general_features_dict)
     ## make down percentages
@@ -445,8 +454,8 @@ def make_weekly_avg_group_features(off_weekly, def_weekly):
     ]
     for attr in group_features_list:
         # Separate attribute values into  offense and defense
-        offense = off_weekly.rename(columns={'team': 'posteam'})
-        defense = def_weekly.rename(columns={'team': 'defteam'})
+        offense = off_weekly.rename(columns={'team': 'posteam'}).groupby(['posteam', 'season', 'week'], as_index=False).agg({attr: 'sum'})
+        defense = def_weekly.rename(columns={'team': 'defteam'}).groupby(['defteam', 'season', 'week'], as_index=False).agg({attr: 'sum'})
 
         # Lag attribute one period back
         offense[f'{attr}_shifted'] = offense.groupby('posteam')[attr].shift()

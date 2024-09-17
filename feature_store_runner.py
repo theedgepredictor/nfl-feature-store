@@ -27,6 +27,7 @@ def main():
         start_season = fs_meta_obj['start_season']
         ## Determine pump mode
         update_seasons = get_seasons_to_update(root_path, feature_store_name)
+        #update_seasons = [2002,2003]
         mode = 'refresh' if start_season in update_seasons else 'upsert'
 
         # Use the last 2 seasons for aggregate stats for upsert mode
