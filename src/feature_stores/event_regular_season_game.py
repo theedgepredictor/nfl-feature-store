@@ -7,7 +7,7 @@ import pandas as pd
 ## Loaders
 ###########################################################
 from src.extract import get_play_by_play, get_schedules, get_elo, stat_collection
-from src.transform import make_cover_feature, make_general_group_features, make_weekly_avg_group_features, make_rushing_epa, make_passing_epa, make_avg_penalty_group_features
+from src.transform import make_cover_feature, make_general_group_features, make_weekly_avg_group_features, make_rushing_epa, make_passing_epa, make_avg_penalty_group_features, make_score_feature
 
 EXPERIMENT_SCORES = {}
 
@@ -66,7 +66,8 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
         make_weekly_avg_group_features(off_weekly, def_weekly),
         make_rushing_epa(data),
         make_passing_epa(data),
-        make_avg_penalty_group_features(data)
+        make_avg_penalty_group_features(data),
+        make_score_feature(data),
     ]
 
     for group in groups:
@@ -94,9 +95,10 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
     df = df.merge(away_a, on=['season', 'week', 'away_team'], how='left').merge(home_a, on=['season', 'week', 'home_team'], how='left')
 
     # Remove the first week of the dataset since it is used as aggregate
-    df = df[~((df.season == df.season.min()) & (df.week == df.week.min()))].copy()
+    if df.season.min() <= 2002:
+        df = df[~((df.season == df.season.min()) & (df.week == df.week.min()))].copy()
     # Remove where the spread or total line is missing and games havent happened yet
-    df = df.dropna()
+    df = df.dropna(subset=['home_score','away_score','spread_line','total_line'])
     df[['away_team_win', 'away_team_spread', 'total_target', 'away_team_covered_spread', 'under_covered']] = df[['away_team_win', 'away_team_spread', 'total_target', 'away_team_covered_spread', 'under_covered']].astype(int)
 
     # Make Inference set

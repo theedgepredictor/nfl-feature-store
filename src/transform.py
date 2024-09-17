@@ -122,6 +122,42 @@ def make_passing_epa(data):
 
     return passing_epa[features]
 
+def make_score_feature(data):
+    """
+    Calculate the score for both offense and defense with dynamic window EWMA.
+
+    Parameters:
+        schedule (DataFrame): Dataframe containing the schedule and scores.
+
+    Returns:
+        DataFrame: Combined dataframe containing offensive and defensive score values with EWMA.
+    """
+    # Separate EPA into passing offense and defense
+    passing_offense_epa = data \
+        .groupby(['posteam', 'season', 'week'], as_index=False)['posteam_score_post'].last()
+
+    passing_defense_epa = data \
+        .groupby(['defteam', 'season', 'week'], as_index=False)['defteam_score_post'].last()
+
+    # Lag EPA one period back
+    passing_offense_epa['epa_shifted'] = passing_offense_epa.groupby('posteam')['posteam_score_post'].shift()
+    passing_defense_epa['epa_shifted'] = passing_defense_epa.groupby('defteam')['defteam_score_post'].shift()
+
+    passing_offense_epa['ewma_score'] = passing_offense_epa.groupby('posteam') \
+        .apply(dynamic_window_ewma).values
+
+    passing_defense_epa['ewma_score'] = passing_defense_epa.groupby('defteam') \
+        .apply(dynamic_window_ewma).values
+
+    # Merge offense and defense EPA
+    passing_epa = passing_offense_epa.rename(columns={'posteam': 'team'}).merge(
+        passing_defense_epa.rename(columns={'defteam': 'team'}),
+        on=['team', 'season', 'week'],
+        suffixes=('_offense', '_defense')
+    )
+    features = [column for column in passing_epa.columns if 'ewma' in column] + ['team', 'season', 'week']
+    return passing_epa[features]
+
 
 def make_cover_feature(schedule):
     """

@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 
 def get_play_by_play(season):
+    print(f'   --- Loading {season}')
+
     try:
         data = pd.read_parquet(f'https://github.com/nflverse/nflverse-data/releases/download/pbp/play_by_play_{season}.parquet')
         data.fillna(-1000000, inplace=True)
@@ -51,12 +53,14 @@ def get_play_by_play(season):
         return pd.DataFrame()
 
 
-def get_schedules(seasons):
+def get_schedules(seasons, season_type='REG'):
     if min(seasons) < 1999:
         raise ValueError('Data not available before 1999.')
 
     scheds = pd.read_csv('http://www.habitatring.com/games.csv')
     scheds = scheds[scheds['season'].isin(seasons)].copy()
+    if season_type == 'REG':
+        scheds = scheds[scheds.game_type=='REG'].copy()
     return scheds
 
 
