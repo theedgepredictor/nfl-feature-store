@@ -46,7 +46,7 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
     schedule['away_team'] = schedule['away_team'].str.replace("SD", "LAC").str.replace("OAK", "LV").str.replace("STL", "LA")
     schedule['home_team'] = schedule['home_team'].str.replace("SD", "LAC").str.replace("OAK", "LV").str.replace("STL", "LA")
 
-    s = schedule[['season', 'week', 'home_team', 'away_team', 'home_score', 'away_score', 'spread_line', 'total_line']].drop_duplicates().reset_index(drop=True) \
+    s = schedule[['season', 'week', 'home_team', 'away_team', 'home_score', 'away_score', 'spread_line', 'total_line']].drop_duplicates(subset=['season', 'week', 'home_team', 'away_team']).reset_index(drop=True) \
         .assign(
         away_team_win=lambda x: (x.home_score < x.away_score),
         away_team_spread=lambda x: (x.home_score - x.away_score),
