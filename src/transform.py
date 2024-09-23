@@ -200,8 +200,6 @@ def make_cover_feature(schedule):
     return away_a, home_a
 
 
-## Create rushing features for rolling avgs
-
 def make_avg_penalty_group_features(data):
     """
     Calculate dynamic window avg for penalty attributes for both offense and defense.
@@ -212,26 +210,30 @@ def make_avg_penalty_group_features(data):
     Returns:
         DataFrame: Combined dataframe containing offensive and defensive penalty avg values.
     """
-    group_features_dict = {
-        'penalty_yards': 'sum',
-        'penalty': 'sum',
-    }
+    data['offensive_penalty'] = data['penalty_team'] == data['posteam']
+    data['defensive_penalty'] = data['penalty_team'] == data['defteam']
+    data['offensive_penalty_yards'] = data['penalty_yards'] * data['offensive_penalty']
+    data['defensive_penalty_yards'] = data['penalty_yards'] * data['defensive_penalty']
     features = pd.DataFrame()
-
+    group_features_dict = {
+        'offensive_penalty_yards': 'sum',
+        'defensive_penalty_yards': 'sum',
+        'offensive_penalty': 'sum',
+        'defensive_penalty': 'sum'
+    }
     for attr, agg_method in group_features_dict.items():
+        penalty_df = data.groupby(['penalty_team', 'season', 'week'], as_index=False).agg({attr: agg_method})
+        penalty_df[f'{attr}_shifted'] = penalty_df.groupby('penalty_team')[attr].shift()
+        penalty_df[f'avg_{attr}'] = penalty_df.groupby('penalty_team').apply(dynamic_window_rolling_average, attr).values
 
-        offense = data.groupby(['penalty_team', 'season', 'week'], as_index=False).agg({attr: agg_method})
-        offense[f'{attr}_shifted'] = offense.groupby('penalty_team')[attr].shift()
-        offense[f'avg_{attr}'] = offense.groupby('penalty_team').apply(dynamic_window_rolling_average, attr).values
-
-        avgs = offense[['penalty_team', 'season', 'week', f'avg_{attr}']].rename(columns={'penalty_team': 'team'})
+        avgs = penalty_df[['penalty_team', 'season', 'week', f'avg_{attr}']].rename(columns={'penalty_team': 'team'})
         # Collect features for this attribute
         if features.shape[0] == 0:
             features = avgs
         else:
             features = pd.merge(features, avgs, on=['team', 'season', 'week'])
 
-    return features.drop_duplicates(subset=['team', 'season', 'week'])
+    return features
 
 
 def make_avg_group_features(data, group_features_dict):
@@ -277,11 +279,9 @@ def make_avg_group_features(data, group_features_dict):
     return features.drop_duplicates(subset=['team', 'season', 'week'])
 
 
-def make_general_group_features(data):
+def make_normal_play_group_features(data):
     ## Create General features for rolling avgs
     general_features_dict = {
-        'posteam_score_post': 'last',
-        'score_differential_post': 'last',
         'first_down': 'sum',
         'third_down_converted': 'sum',
         'third_down_failed': 'sum',
@@ -302,15 +302,14 @@ def make_general_group_features(data):
         'qb_scramble': 'sum',
         'goal_to_go': 'sum',
         'is_redzone': 'sum',
-        'successful_two_point_conversion': 'sum',
-        'drive': 'nunique',  # Number of unique drives in the quarter
-        'series': 'nunique',  # Number of unique series in the quarter
+        #'successful_two_point_conversion': 'sum',
+        #'drive': 'nunique',  # Number of unique drives in the quarter
+        #'series': 'nunique',  # Number of unique series in the quarter
     }
     general_features = data[
         (~data['down'].isna()) &
         (data['play_type'].isin(['pass', 'qb_kneel', 'qb_spike', 'run']))
         ].copy()
-    general_features['turnover'] = general_features['fumble_lost'] + general_features['interception']
     general_features = make_avg_group_features(general_features, general_features_dict)
     ## make down percentages
     general_features['avg_third_down_percentage_offense'] = general_features.apply(
@@ -344,6 +343,71 @@ def make_general_group_features(data):
     })
     return general_features
 
+def make_general_group_features(data):
+    """
+    Unfiltered play by play data features for offense and defense
+
+    Parameters:
+        data (DataFrame): Play-by-play dataframe containing the relevant play data.
+
+    Returns:
+        DataFrame: Combined dataframe containing offensive and defensive avg values.
+    """
+
+    #### Handles time of possession for offense and defense
+
+    group_features_dict = {
+        'posteam_score_post': 'last',
+        'score_differential_post': 'last',
+        'epa': 'sum',
+        'wpa': 'sum',
+        'time_of_possession': 'sum',
+        'field_goal_made': 'sum',
+        'field_goal_attempt':'sum',
+        'field_goal_distance': 'mean',
+        'extra_point_made': 'sum',
+        'extra_point_attempt': 'sum',
+        'turnover':'sum',
+    }
+    data['turnover'] = data['fumble_lost'] + data['interception']
+    data['game_seconds_remaining'] = data['game_seconds_remaining'].fillna(0)
+    # For each play in the game calculate the difference in the clock
+    data['time_of_possession'] = data.groupby('game_id')['game_seconds_remaining'].diff(-1).abs()
+    data['field_goal_made'] = data['field_goal_result'] == 'made'
+    data['extra_point_made'] = data['extra_point_result'] == 'made'
+    data['field_goal_distance'] = None
+    data.loc[data['field_goal_attempt']==1, 'field_goal_distance'] = data.loc[data['field_goal_attempt']==1, 'kick_distance']
+
+    general_features = make_avg_group_features(data, group_features_dict)
+    general_features['avg_field_goal_percentage_offense'] = general_features.apply(
+        lambda row: row['avg_field_goal_made_offense'] / (row['avg_field_goal_attempt_offense'])
+        if (row['avg_field_goal_attempt_offense']) > 0 else 0,
+        axis=1
+    )
+    general_features['avg_field_goal_percentage_defense'] = general_features.apply(
+        lambda row: row['avg_field_goal_made_defense'] / (row['avg_field_goal_attempt_defense'])
+        if (row['avg_field_goal_attempt_defense']) > 0 else 0,
+        axis=1
+    )
+    general_features['avg_extra_point_percentage_offense'] = general_features.apply(
+        lambda row: row['avg_extra_point_made_offense'] / (row['avg_extra_point_attempt_offense'])
+        if (row['avg_extra_point_attempt_offense']) > 0 else 0,
+        axis=1
+    )
+    general_features['avg_extra_point_percentage_defense'] = general_features.apply(
+        lambda row: row['avg_extra_point_made_defense'] / (row['avg_extra_point_attempt_defense'])
+        if (row['avg_extra_point_attempt_defense']) > 0 else 0,
+        axis=1
+    )
+    ## rename columns
+    general_features = general_features.rename(columns={
+        'avg_posteam_score_post_offense': 'avg_points_offense',
+        'avg_posteam_score_post_defense': 'avg_points_defense',
+        'avg_score_differential_post_offense': 'avg_point_differential_offense',
+        'avg_score_differential_post_defense': 'avg_point_differential_defense',
+    })
+
+    return general_features.drop_duplicates(subset=['team', 'season', 'week'])
 
 def make_weekly_avg_group_features(off_weekly, def_weekly):
     """
@@ -479,3 +543,136 @@ def make_weekly_avg_group_features(off_weekly, def_weekly):
             features = pd.merge(features, avgs, on=['team', 'season', 'week'])
 
     return features.drop_duplicates(subset=['team', 'season', 'week'])
+
+
+def calculate_ranks(df, group_by_col, rank_cols_methods):
+    """
+    Calculate ranks for specified columns in a DataFrame grouped by a column.
+
+    Parameters:
+        df (pd.DataFrame): The DataFrame containing the data.
+        group_by_col (str): The column name to group by (e.g., 'week').
+        rank_cols_methods (dict): A dictionary where keys are column names,
+                                  and values are the ranking methods ('max' or 'min').
+
+    Returns:
+        pd.DataFrame: The original DataFrame with new rank columns.
+    """
+    rank_df_list = []
+
+    # Calculate ranks for each column based on its corresponding method
+    for col, method in rank_cols_methods.items():
+        # Rank for each column based on its specific method
+        rank_col_df = df.groupby(group_by_col, as_index=False)[col].rank(method=method, ascending=(method == 'min')).astype(int)
+        rank_df_list.append(rank_col_df)  # Keep only the rank column
+
+    # Combine all rank columns
+    rank_df = pd.concat(rank_df_list, axis=1)
+
+    # Add suffix to rank columns
+    rank_df.columns = [f"{col}_rank" for col in rank_cols_methods.keys()]
+
+    # Concatenate the rank columns back to the original dataframe
+    df = pd.concat([df.reset_index(drop=True), rank_df.reset_index(drop=True)], axis=1)
+
+    return df.drop(columns=[col for col in rank_cols_methods.keys()])
+
+
+# Specify which columns should use 'max' and which should use 'min'
+
+
+def make_rank_cols(team_fs):
+    team_fs = team_fs.rename(columns={'spread_line': 'away_spread_line'})
+    team_fs['home_spread_line'] = -team_fs['away_spread_line']
+    team_fs['home_team_spread'] = -team_fs['away_team_spread']
+    team_fs['home_team_win'] = team_fs['away_team_win'] == 0
+    team_fs['home_team_covered_spread'] = team_fs['away_team_covered_spread'] == 0
+    team_fs['ishome'] = team_fs['home_team']
+    team_fs_df = df_rename_fold(team_fs, 'away_', 'home_')
+    team_fs_df['ishome'] = team_fs_df['ishome'] == team_fs_df['team']
+    df = team_fs[['away_team', 'home_team', 'week', 'season']].copy()
+    rank_cols_methods_offense = {
+        'elo_pre': 'max',
+        'avg_points_offense': 'max',
+        'avg_rushing_yards_offense': 'max',
+        'avg_passing_yards_offense': 'max',
+        'avg_total_yards_offense': 'max',
+        'avg_yards_per_play_offense': 'max',
+        'avg_total_turnovers_offense': 'min'  # Use 'min' for turnovers
+    }
+
+    rank_cols_methods_defense = {
+        'avg_points_defense': 'min',
+        'avg_rushing_yards_defense': 'min',
+        'avg_passing_yards_defense': 'min',
+        'avg_total_yards_defense': 'min',
+        'avg_yards_per_play_defense': 'min',
+        'avg_total_turnovers_defense': 'max'
+    }
+
+    # Calculate offensive ranks
+    offensive_ranks = calculate_ranks(team_fs_df[['team', 'week', 'season'] + list(rank_cols_methods_offense.keys())], 'week', rank_cols_methods_offense)
+    o_ranks = offensive_ranks.copy()
+    o_ranks['offensive'] = o_ranks['avg_points_offense_rank'] + o_ranks['avg_total_yards_offense_rank']
+    o_ranks = calculate_ranks(o_ranks[['team', 'week', 'season', 'offensive']], 'week', {'offensive': 'min'})
+    defensive_ranks = calculate_ranks(team_fs_df[['team', 'week', 'season'] + list(rank_cols_methods_defense.keys())], 'week', rank_cols_methods_defense)
+    d_ranks = defensive_ranks.copy()
+    d_ranks['defensive'] = d_ranks['avg_points_defense_rank'] + d_ranks['avg_total_yards_defense_rank']
+    d_ranks = calculate_ranks(d_ranks[['team', 'week', 'season', 'defensive']], 'week', {'defensive': 'min'})
+
+    full_rank = pd.merge(offensive_ranks, defensive_ranks, on=['team', 'week', 'season'])
+    full_rank = pd.merge(full_rank, o_ranks, on=['team', 'week', 'season'])
+    full_rank = pd.merge(full_rank, d_ranks, on=['team', 'week', 'season'])
+    full_rank['net_rank'] = (full_rank['offensive_rank'] + full_rank['defensive_rank']) / 2
+    full_rank = full_rank.sort_values(by=['season', 'week', 'offensive_rank', ]).reset_index(drop=True)
+    away_fs = full_rank.copy()
+    away_fs.columns = ['away_' + col if col not in ['week', 'season'] else col for col in away_fs.columns]
+    home_fs = full_rank.copy()
+    home_fs.columns = ['home_' + col if col not in ['week', 'season'] else col for col in home_fs.columns]
+    df = pd.merge(df, away_fs, on=['away_team', 'week', 'season'])
+    df = pd.merge(df, home_fs, on=['home_team', 'week', 'season'])
+    return df
+
+
+def make_qtr_score_group_features(df):
+    """
+    Calculate score for a given groupby_cols. Uses the last value since play by play is sorted
+    """
+    groupby_cols = ['game_id', 'posteam', 'season', 'week', 'qtr']
+    score = df[groupby_cols + ['posteam_score_post', 'defteam_score_post']].copy()
+    score = score.groupby(groupby_cols).nth(-1)
+    score = score.sort_values(groupby_cols)
+    score['posteam_score_post'] = score.groupby(['game_id', 'posteam'])['posteam_score_post'].diff().fillna(score['posteam_score_post'])
+    score['defteam_score_post'] = score.groupby(['game_id', 'posteam'])['defteam_score_post'].diff().fillna(score['defteam_score_post'])
+    score['point_diff'] = score['posteam_score_post'] - score['defteam_score_post']
+    score = score.rename(columns={'posteam_score_post': 'points', 'defteam_score_post': 'defteam_score'})
+    score[['points', 'point_diff']] = score[['points', 'point_diff']].astype(int)
+    score = score.drop(columns=['defteam_score'])
+
+    # Pivot the table to create columns for each quarter
+    score = score.reset_index()  # Reset index for easier manipulation
+    score_pivot = score.pivot_table(index=['game_id', 'posteam', 'season', 'week'],
+                                    columns='qtr',
+                                    values=['points', 'point_diff'],
+                                    aggfunc='first').fillna(0)
+
+    # Flatten the multi-level column names
+    score_pivot.columns = [f'q{int(qtr)}_{metric}' for metric, qtr in score_pivot.columns]
+
+    # Reset index to get a clean DataFrame
+    score_pivot = score_pivot.reset_index().drop(columns=['game_id'])
+    score_pivot = pd.merge(df[['season', 'week', 'posteam', 'defteam']], score_pivot, on=['season', 'week', 'posteam', ], how='left')
+    group_features_dict = {
+        'q1_point_diff': 'mean',
+        'q2_point_diff': 'mean',
+        'q3_point_diff': 'mean',
+        'q4_point_diff': 'mean',
+        'q5_point_diff': 'mean',
+        'q1_points': 'mean',
+        'q2_points': 'mean',
+        'q3_points': 'mean',
+        'q4_points': 'mean',
+        'q5_points': 'mean',
+    }
+    features = make_avg_group_features(score_pivot, group_features_dict)
+    return features

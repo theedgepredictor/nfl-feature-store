@@ -61,6 +61,8 @@ def get_schedules(seasons, season_type='REG'):
     scheds = scheds[scheds['season'].isin(seasons)].copy()
     if season_type == 'REG':
         scheds = scheds[scheds.game_type=='REG'].copy()
+    scheds['away_team'] = scheds['away_team'].str.replace("SD", "LAC").str.replace("OAK", "LV").str.replace("STL", "LA")
+    scheds['home_team'] = scheds['home_team'].str.replace("SD", "LAC").str.replace("OAK", "LV").str.replace("STL", "LA")
     return scheds
 
 
@@ -191,6 +193,7 @@ def collect_qbr(seasons, season_type="REG"):
     qbr = pd.read_csv('https://github.com/nflverse/nflverse-data/releases/download/espn_data/qbr_week_level.csv')
     qbr = qbr[qbr.season.isin(seasons)].copy()
     qbr = qbr[qbr.season_type == season_type].copy()
+    qbr['team_abb'] = qbr['team_abb'].str.replace("SD", "LAC").str.replace("OAK", "LV").str.replace("STL", "LA")
     p_id = pd.read_csv('https://raw.githubusercontent.com/dynastyprocess/data/master/files/db_playerids.csv')
     p_id = p_id[p_id.espn_id.notnull()][['espn_id', 'gsis_id']]
     p_id.espn_id = p_id.espn_id.astype(int)
@@ -198,7 +201,6 @@ def collect_qbr(seasons, season_type="REG"):
 
     qbr['player_id'] = qbr['player_id'].map(p_id_dict)
     return qbr[['season', 'week_num', 'team_abb', 'player_id', 'qbr_total']].rename(columns={'qbr_total': 'qbr', 'week_num': 'week', 'team_abb': 'recent_team'})
-
 
 def stat_collection(year, season_type="REG", mode='team'):
     TEAM_STATS = [
@@ -218,7 +220,6 @@ def stat_collection(year, season_type="REG", mode='team'):
         'touchdown_per_play',
         'yards_per_play',
         'fantasy_point_per_play',
-
         'completions',
         'attempts',
         'passing_yards',
@@ -254,7 +255,6 @@ def stat_collection(year, season_type="REG", mode='team'):
         'pass_to_rush_first_down_ratio',
         'yards_per_pass_attempt',
         'sack_rate',
-
         'carries',
         'rushing_yards',
         'rushing_tds',
@@ -393,6 +393,7 @@ def stat_collection(year, season_type="REG", mode='team'):
     df = pd.merge(df, ngs_rushing_df, on=['player_id', 'season', 'week', 'recent_team'], how='left')
     df = pd.merge(df, ngs_receiving_df, on=['player_id', 'season', 'week', 'recent_team'], how='left')
     df = pd.merge(df, espn_qbr_df, on=['player_id', 'season', 'week', 'recent_team'], how='left')
+    #df = fill_qbr(df)
 
     if mode in ['team', 'opponent']:
         df = df.groupby(['season', 'week', 'recent_team' if mode == 'team' else 'opponent_team'])[passing_stats + rushing_stats + receiving_stats + general_stats].sum().reset_index()
@@ -420,6 +421,18 @@ def stat_collection(year, season_type="REG", mode='team'):
 
     df['air_yards_per_pass_attempt'] = df['receiving_air_yards'] / df['attempts']
     return df[TEAM_STATS] if mode in ['team', 'opponent'] else df
+
+def fill_qbr(df):
+    # Step 1: Calculate the average qbr for each season-week group
+    qbr_avg = df.groupby(['season', 'week'])['qbr'].transform('mean')
+
+    # Step 2: Fill missing qbr values based on the team_win condition
+    df['qbr'] = df.apply(lambda row: 0.4 * qbr_avg[row.name] if pd.isna(row['qbr']) and row['team_win'] == 0
+                         else 0.6 * qbr_avg[row.name] if pd.isna(row['qbr']) and row['team_win'] == 1
+                         else row['qbr'], axis=1)
+    return df
+
+
 
 def load_players():
     df = pd.read_parquet('https://github.com/nflverse/nflverse-data/releases/download/players/players.parquet')

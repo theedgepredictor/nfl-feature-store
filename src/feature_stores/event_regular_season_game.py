@@ -7,7 +7,8 @@ import pandas as pd
 ## Loaders
 ###########################################################
 from src.extract import get_play_by_play, get_schedules, get_elo, stat_collection
-from src.transform import make_cover_feature, make_general_group_features, make_weekly_avg_group_features, make_rushing_epa, make_passing_epa, make_avg_penalty_group_features, make_score_feature
+from src.transform import make_cover_feature, make_normal_play_group_features, make_weekly_avg_group_features, make_rushing_epa, make_passing_epa, make_avg_penalty_group_features, make_score_feature, make_rank_cols, make_general_group_features
+from src.utils import get_dataframe
 
 EXPERIMENT_SCORES = {}
 
@@ -43,10 +44,20 @@ def load_data(load_seasons):
 ###########################################################
 
 def preprocess(data, schedule, elo, off_weekly, def_weekly):
-    schedule['away_team'] = schedule['away_team'].str.replace("SD", "LAC").str.replace("OAK", "LV").str.replace("STL", "LA")
-    schedule['home_team'] = schedule['home_team'].str.replace("SD", "LAC").str.replace("OAK", "LV").str.replace("STL", "LA")
 
-    s = schedule[['season', 'week', 'home_team', 'away_team', 'home_score', 'away_score', 'spread_line', 'total_line']].drop_duplicates(subset=['season', 'week', 'home_team', 'away_team']).reset_index(drop=True) \
+    s = schedule[
+        [
+            'season',
+            'week',
+            'home_team',
+            'away_team',
+            'home_score',
+            'away_score',
+            'spread_line',
+            'total_line',
+
+        ]
+    ].drop_duplicates(subset=['season', 'week', 'home_team', 'away_team']).reset_index(drop=True) \
         .assign(
         away_team_win=lambda x: (x.home_score < x.away_score),
         away_team_spread=lambda x: (x.home_score - x.away_score),
@@ -66,10 +77,11 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
     b = make_rushing_epa(data)
     c = make_passing_epa(data)
     d = make_avg_penalty_group_features(data)
-    e = make_general_group_features(data)
+    e = make_normal_play_group_features(data)
+    f = make_general_group_features(data)
 
     groups = [
-        a,b,c,d,e
+        a,b,c,d,e,f
     ]
 
     for group in groups:
@@ -96,9 +108,6 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
 
     df = df.merge(away_a, on=['season', 'week', 'away_team'], how='left').merge(home_a, on=['season', 'week', 'home_team'], how='left')
 
-    # Remove the first week of the dataset since it is used as aggregate
-    if df.season.min() <= 2002:
-        df = df[~((df.season == df.season.min()) & (df.week == df.week.min()))].copy()
     # Remove where the spread or total line is missing and games havent happened yet
     df = df.dropna(subset=['home_score','away_score','spread_line','total_line'])
     df[['away_team_win', 'away_team_spread', 'total_target', 'away_team_covered_spread', 'under_covered']] = df[['away_team_win', 'away_team_spread', 'total_target', 'away_team_covered_spread', 'under_covered']].astype(int)
@@ -130,7 +139,16 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
     elo = pd.merge(elo[['id', 'away_elo_pre', 'away_elo_prob', 'home_elo_pre', 'home_elo_prob']], schedule[['espn', 'away_team', 'home_team', 'season', 'week']].rename(columns={'espn': 'id'}), on=['id'], how='inner').drop(columns=['id'])
 
     df = df.merge(elo, on=['season', 'week', 'away_team', 'home_team'], how='left')
-    # print(df.columns)
+
+    # Remove the first week of the dataset since it is used as aggregate
+    if df.season.min() <= 2002:
+        df = df[~((df.season == df.season.min()) & (df.week == df.week.min()))].copy()
+
+    ### Handle Rank Columns
+    rank_df = make_rank_cols(df)
+    df = df.merge(rank_df, on=['season', 'week', 'away_team', 'home_team'], how='left')
+
+
     return df
 
 
@@ -139,4 +157,18 @@ def make_event_regular_season_feature_store(load_seasons):
 
     print(f"    Preprocessing event regular season feature store {datetime.datetime.now()}")
     return preprocess(data, schedule, elo, off_weekly, def_weekly)
+
+def event_regular_season_test_suite():
+    df = get_dataframe('./data/feature_store/event/regular_season_game/2023.parquet')
+    ## Test Season Long Rolling Avgs
+    buf_nyj_2023_01 = df[df['game_id']=='2023_01_BUF_NYJ'].to_dict(orient='records')[0]
+
+    ## Test Week1 Rolling Avgs
+
+    ## Test game count across seasons
+
+    ## Test missing values
+
+
+
 
