@@ -44,7 +44,6 @@ def load_data(load_seasons):
 ###########################################################
 
 def preprocess(data, schedule, elo, off_weekly, def_weekly):
-
     s = schedule[
         [
             'season',
@@ -55,7 +54,10 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
             'away_score',
             'spread_line',
             'total_line',
-
+            'away_rest',
+            'home_rest',
+            'away_moneyline',
+            'home_moneyline'
         ]
     ].drop_duplicates(subset=['season', 'week', 'home_team', 'away_team']).reset_index(drop=True) \
         .assign(
@@ -148,7 +150,6 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
     ### Handle Rank Columns
     rank_df = make_rank_cols(df)
     df = df.merge(rank_df, on=['season', 'week', 'away_team', 'home_team'], how='left')
-
 
     return df
 
