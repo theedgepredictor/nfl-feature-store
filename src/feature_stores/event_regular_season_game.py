@@ -7,7 +7,7 @@ import pandas as pd
 ## Loaders
 ###########################################################
 from src.extract import get_play_by_play, get_schedules, get_elo, stat_collection
-from src.transform import make_cover_feature, make_normal_play_group_features, make_weekly_avg_group_features, make_rushing_epa, make_passing_epa, make_avg_penalty_group_features, make_score_feature, make_rank_cols, make_general_group_features
+from src.transform import make_cover_feature, make_normal_play_group_features, make_weekly_avg_group_features, make_rushing_epa, make_passing_epa, make_avg_penalty_group_features, make_score_feature, make_rank_cols, make_general_group_features, make_qtr_score_group_features
 from src.utils import get_dataframe
 
 EXPERIMENT_SCORES = {}
@@ -79,9 +79,10 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
     d = make_avg_penalty_group_features(data)
     e = make_normal_play_group_features(data)
     f = make_general_group_features(data)
+    g = make_qtr_score_group_features(data)
 
     groups = [
-        a,b,c,d,e,f
+        a,b,c,d,e,f,g
     ]
 
     for group in groups:

@@ -610,15 +610,19 @@ def make_rank_cols(team_fs):
         'avg_total_turnovers_defense': 'max'
     }
 
+    ## Handle null state agg removal (first week is always null in agg we grab multiple seasons back to avoid errors in calculation but need to drop null state)
+
+    team_fs_df = team_fs_df[team_fs_df['avg_points_offense'].notnull()].copy()
+
     # Calculate offensive ranks
-    offensive_ranks = calculate_ranks(team_fs_df[['team', 'week', 'season'] + list(rank_cols_methods_offense.keys())], 'week', rank_cols_methods_offense)
+    offensive_ranks = calculate_ranks(team_fs_df[['team', 'week', 'season'] + list(rank_cols_methods_offense.keys())], ['season','week'], rank_cols_methods_offense)
     o_ranks = offensive_ranks.copy()
     o_ranks['offensive'] = o_ranks['avg_points_offense_rank'] + o_ranks['avg_total_yards_offense_rank']
-    o_ranks = calculate_ranks(o_ranks[['team', 'week', 'season', 'offensive']], 'week', {'offensive': 'min'})
-    defensive_ranks = calculate_ranks(team_fs_df[['team', 'week', 'season'] + list(rank_cols_methods_defense.keys())], 'week', rank_cols_methods_defense)
+    o_ranks = calculate_ranks(o_ranks[['team', 'week', 'season', 'offensive']], ['season','week'], {'offensive': 'min'})
+    defensive_ranks = calculate_ranks(team_fs_df[['team', 'week', 'season'] + list(rank_cols_methods_defense.keys())], ['season','week'], rank_cols_methods_defense)
     d_ranks = defensive_ranks.copy()
     d_ranks['defensive'] = d_ranks['avg_points_defense_rank'] + d_ranks['avg_total_yards_defense_rank']
-    d_ranks = calculate_ranks(d_ranks[['team', 'week', 'season', 'defensive']], 'week', {'defensive': 'min'})
+    d_ranks = calculate_ranks(d_ranks[['team', 'week', 'season', 'defensive']], ['season','week'], {'defensive': 'min'})
 
     full_rank = pd.merge(offensive_ranks, defensive_ranks, on=['team', 'week', 'season'])
     full_rank = pd.merge(full_rank, o_ranks, on=['team', 'week', 'season'])
