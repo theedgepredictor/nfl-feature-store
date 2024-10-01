@@ -6,7 +6,7 @@ import pandas as pd
 ###########################################################
 ## Loaders
 ###########################################################
-from src.extract import load_mult_lats, get_play_by_play, load_players
+from src.extracts import load_mult_lats, get_play_by_play, load_players
 from src.utils import get_seasons_to_update
 
 ## From: https://github.com/nflverse/nflfastR/blob/master/R/aggregate_game_stats.R

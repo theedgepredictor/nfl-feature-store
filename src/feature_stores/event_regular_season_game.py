@@ -6,7 +6,9 @@ import pandas as pd
 ###########################################################
 ## Loaders
 ###########################################################
-from src.extract import get_play_by_play, get_schedules, get_elo, stat_collection
+from src.components.game import GameComponent
+from src.components.team import TeamComponent
+from src.extracts import get_play_by_play, get_schedules, get_elo, stat_collection, get_qb_elo
 from src.transform import make_cover_feature, make_normal_play_group_features, make_weekly_avg_group_features, make_rushing_epa, make_passing_epa, make_avg_penalty_group_features, make_score_feature, make_rank_cols, make_general_group_features, make_qtr_score_group_features
 from src.utils import get_dataframe
 
@@ -29,7 +31,8 @@ def load_data(load_seasons):
 
     print(f"    Loading elo data {datetime.datetime.now()}")
 
-    elo = pd.concat([get_elo(season) for season in load_seasons])
+    elo = get_qb_elo(load_seasons)
+    #elo = pd.concat([get_elo(season) for season in load_seasons])
 
     print(f"    Loading offensive player weekly data {datetime.datetime.now()}")
     off_weekly = pd.concat([stat_collection(season, season_type="REG", mode='team') for season in load_seasons])
@@ -38,7 +41,35 @@ def load_data(load_seasons):
     def_weekly = pd.concat([stat_collection(season, season_type="REG", mode='opponent') for season in load_seasons])
     return data, schedule, elo, off_weekly, def_weekly
 
+def temp_make_event_regular_season_feature_store(load_seasons):
+    g_component = GameComponent(load_seasons, season_type='REG')
+    game_features_df = g_component.df.copy()
+    del g_component
+    
+    t_component = TeamComponent(load_seasons, season_type='REG')
+    team_features_df = t_component.df.copy()
+    del t_component
+    
+    df = game_features_df.merge(
+        team_features_df.rename(columns={'team': 'home_team'}),
+        on=['home_team', 'season', 'week'],
+        how='left'
+    ).merge(
+        team_features_df.rename(columns={'team': 'away_team'}),
+        on=['away_team', 'season', 'week'],
+        how='left',
+        suffixes=('_home', '_away')
+    )
 
+    # Suffix to prefix
+    df.columns = [
+        'home_' + col.replace('_home', '') if '_home' in col else
+        'away_' + col.replace('_away', '') if '_away' in col else
+        col
+        for col in df.columns
+    ]
+    
+    
 ###########################################################
 ## Preprocessing
 ###########################################################
@@ -113,7 +144,6 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
 
     # Remove where the spread or total line is missing and games havent happened yet
     df = df.dropna(subset=['home_score','away_score','spread_line','total_line'])
-    df[['away_team_win', 'away_team_spread', 'total_target', 'away_team_covered_spread', 'under_covered']] = df[['away_team_win', 'away_team_spread', 'total_target', 'away_team_covered_spread', 'under_covered']].astype(int)
 
     # Make Inference set
     inference_df = s[((s.home_score.isnull()) & (s.away_score.isnull()) & (s.spread_line.notna()) & (s.total_line.notna()))].copy()
@@ -139,7 +169,8 @@ def preprocess(data, schedule, elo, off_weekly, def_weekly):
     ]
 
     df = pd.concat([df, inference_df])
-    elo = pd.merge(elo[['id', 'away_elo_pre', 'away_elo_prob', 'home_elo_pre', 'home_elo_prob']], schedule[['espn', 'away_team', 'home_team', 'season', 'week']].rename(columns={'espn': 'id'}), on=['id'], how='inner').drop(columns=['id'])
+
+    #elo = pd.merge(elo[['id', 'away_elo_pre', 'away_elo_prob', 'home_elo_pre', 'home_elo_prob']], schedule[['espn', 'away_team', 'home_team', 'season', 'week']].rename(columns={'espn': 'id'}), on=['id'], how='inner').drop(columns=['id'])
 
     df = df.merge(elo, on=['season', 'week', 'away_team', 'home_team'], how='left')
 
