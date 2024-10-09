@@ -25,9 +25,11 @@ class GameComponent:
         print(f"    Loading schedule data {datetime.datetime.now()}")
 
         schedule = get_schedules(self.load_seasons, self.season_type)
+        elo = get_qb_elo(self.load_seasons, self.season_type)
 
         return {
             'games': schedule,
+            'elo': elo,
         }
 
     def run_pipeline(self):
@@ -39,6 +41,7 @@ class GameComponent:
         for group in groups:
             df = pd.merge(df, group, on=['home_team', 'away_team', 'season', 'week'], how='left')
         df = self._add_rolling_cover_pipeline(df.copy())
+        df = self._add_elo_pipeline(df.copy())
         return df[[
             'home_team',
             'away_team',
@@ -61,6 +64,10 @@ class GameComponent:
             'away_rolling_spread_cover',
             'home_rolling_under_cover',
             'away_rolling_under_cover',
+            'home_elo_pre',
+            'home_elo_prob',
+            'away_elo_pre',
+            'away_elo_prob'
         ]]
 
     def _game_pipeline(self):
@@ -103,6 +110,10 @@ class GameComponent:
     def _add_rolling_cover_pipeline(self, df):
         away_a, home_a = make_cover_feature(df)
         df = df.merge(away_a, on=['season', 'week', 'away_team'], how='left').merge(home_a, on=['season', 'week', 'home_team'], how='left')
+        return df
+
+    def _add_elo_pipeline(self, df):
+        df = df.merge(self.db['elo'], on=['season', 'week', 'away_team', 'home_team'], how='left')
         return df
 
 if __name__ == '__main__':

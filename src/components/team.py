@@ -28,7 +28,7 @@ class TeamComponent:
         print(f"    Loading play-by-play data {datetime.datetime.now()}")
 
         data = pd.concat([get_play_by_play(season, self.season_type) for season in self.load_seasons])
-        print(f"    Loading schedule data {datetime.datetime.now()}")
+        #print(f"    Loading schedule data {datetime.datetime.now()}")
 
         print(f"    Loading offensive player weekly data {datetime.datetime.now()}")
         off_weekly = pd.concat([stat_collection(season, season_type=self.season_type, mode='team') for season in self.load_seasons])
@@ -43,7 +43,6 @@ class TeamComponent:
 
     def run_pipeline(self):
         epa = make_score_feature(self.db['pbp'])
-
         a = make_weekly_avg_group_features(self.db['team_stats'], self.db['opp_stats'])
         b = make_rushing_epa(self.db['pbp'])
         c = make_passing_epa(self.db['pbp'])
@@ -58,5 +57,4 @@ class TeamComponent:
 
         for group in groups:
             epa = pd.merge(epa, group, on=['team', 'season', 'week'], how='left')
-
-        self.df = epa.copy()
+        return epa.copy()

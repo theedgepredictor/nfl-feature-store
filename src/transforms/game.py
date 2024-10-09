@@ -63,7 +63,7 @@ def make_weekly_avg_group_features(off_weekly, def_weekly):
         'completion_percentage_above_expectation',
         'avg_air_distance',
         'max_air_distance',
-        'qbr',
+        #'qbr',
         'air_yards_per_pass_attempt',
         'pass_to_rush_ratio',
         'pass_to_rush_first_down_ratio',

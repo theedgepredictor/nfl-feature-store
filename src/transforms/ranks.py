@@ -40,17 +40,12 @@ def calculate_ranks(df, group_by_col, rank_cols_methods):
 
 
 def make_rank_cols(team_fs):
-    team_fs = team_fs.rename(columns={'spread_line': 'away_spread_line'})
-    team_fs['home_spread_line'] = -team_fs['away_spread_line']
-    team_fs['home_team_spread'] = -team_fs['away_team_spread']
-    team_fs['home_team_win'] = team_fs['away_team_win'] == 0
-    team_fs['home_team_covered_spread'] = team_fs['away_team_covered_spread'] == 0
     team_fs['ishome'] = team_fs['home_team']
     team_fs_df = df_rename_fold(team_fs, 'away_', 'home_')
     team_fs_df['ishome'] = team_fs_df['ishome'] == team_fs_df['team']
     df = team_fs[['away_team', 'home_team', 'week', 'season']].copy()
     rank_cols_methods_offense = {
-        'elo_pre': 'max',
+        #'elo_pre': 'max',
         'avg_points_offense': 'max',
         'avg_rushing_yards_offense': 'max',
         'avg_passing_yards_offense': 'max',
