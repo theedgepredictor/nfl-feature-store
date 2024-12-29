@@ -1,11 +1,12 @@
 import re
-
 import numpy as np
 import pandas as pd
 import datetime
 import os
 from typing import List
 import pyarrow as pa
+from bs4 import BeautifulSoup
+
 
 def get_dataframe(path: str, columns: List = None):
     """
@@ -115,3 +116,44 @@ def find_year_for_season( date: datetime.datetime = None):
         return today.year - 1
     else:
         return today.year
+
+def get_webpage_soup(html, html_attr=None, attr_key_val=None):
+    if html:
+        soup = BeautifulSoup(html, 'html.parser')
+        if html_attr:
+            soup = soup.find(html_attr, attr_key_val)
+        return soup
+    return None
+
+def clean_string(s):
+    if isinstance(s, str):
+        return re.sub("[\W_]+",'',s)
+    else:
+        return s
+
+def re_alphanumspace(s):
+    if isinstance(s, str):
+        return re.sub("^[a-zA-Z0-9 ]*$",'',s)
+    else:
+        return s
+
+def re_braces(s):
+    if isinstance(s, str):
+        return re.sub("[\(\[].*?[\)\]]", "", s)
+    else:
+        return s
+
+def re_numbers(s):
+    if isinstance(s, str):
+        n = ''.join(re.findall(r'\d+', s))
+        return int(n) if n != '' else n
+    else:
+        return s
+
+
+def name_filter(s):
+    s = clean_string(s)
+    s = re_braces(s)
+    s = str(s)
+    s = s.replace(' ', '').lower()
+    return s

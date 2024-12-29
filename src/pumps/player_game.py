@@ -6,7 +6,8 @@ import pandas as pd
 ###########################################################
 ## Loaders
 ###########################################################
-from src.extracts import load_mult_lats, get_play_by_play, load_players
+from src.extracts.pbp import get_play_by_play, load_mult_lats
+from src.extracts.player_stats import collect_players
 from src.utils import get_seasons_to_update
 
 ## From: https://github.com/nflverse/nflfastR/blob/master/R/aggregate_game_stats.R
@@ -61,10 +62,53 @@ def decode_player_ids(data):
     return data
 
 
+def calculate_success_points(row):
+    """
+    2. Success Point Values:
+    - Successful Play:
+        - A fully successful play earns 1 success point.
+    - Partial Success:
+        - Plays that fall short but still gain significant yardage receive fractional points. For example, gaining 8 yards on 3rd-and-10 might earn 0.54 success points.
+    - Big Plays:
+        - Big plays receive bonus success points based on yardage:
+            - 10-yard plays (resulting in a first down): 3 points.
+            - 20-yard plays: 4 points.
+            - 40-yard plays: 5 points.
+3. Negative Success Points:
+    - Losing Yardage: Plays that lose 3 or more yards are penalized with -1 point.
+    - Turnovers:
+        - Interceptions: Interceptions are penalized with -6 points on average, with adjustments based on the length of the pass and where the interception occurred (e.g., short passes tipped at the line can result in longer returns).
+        - Fumbles: Fumbles incur a penalty ranging from -1.7 to -4 points, depending on the likelihood of the defense recovering the ball in that situation. Importantly, fumbles are penalized regardless of who actually recovers the ball.
+    """
+    if row['down'] == 1:
+        success_fraction = row['yards_gained'] / (0.45 * row['ydstogo'])
+    elif row['down'] == 2:
+        success_fraction = row['yards_gained'] / (0.6 * row['ydstogo'])
+    else:
+        success_fraction = row['yards_gained'] / row['ydstogo']
+
+    # Scale success points between 0 and 1 (capped)
+    success_points = min(max(success_fraction, 0), 1)
+
+    # Add bonus points for big plays and deductions for negative plays
+    if row['yards_gained'] > 10:
+        success_points += (row['yards_gained'] - 10) * 0.05  # Gradually increasing bonus
+    elif row['yards_gained'] < -3:
+        success_points -= 1  # Deduction for negative plays
+
+    # Cap at 3 points max (e.g., for very large gains) and penalize interceptions and fumbles
+    if 'interception' in row['play_type']:
+        success_points = -4.5  # Base penalty for interceptions
+    if 'fumble' in row['play_type']:
+        success_points -= 1.3  # Base penalty for fumbles
+
+    return success_points
+
 ###########################################################
 ## Preprocessing
 ###########################################################
 def filter_normal_plays(pbp):
+
     # Step 1: Filter for normal plays
     return pbp[
         (~pbp['down'].isna()) &
@@ -511,6 +555,9 @@ def combine_all_stats(pass_df, rush_df, rec_df, st_tds, s_type):
 def calculate_player_stats(pbp, weekly=False):
     mult_lats = load_mult_lats()
     data = filter_normal_plays(pbp)
+
+    ## Add general stats
+
     two_points = filter_two_point_conversions(pbp)
 
     # # we need this column for the special teams tds
@@ -522,7 +569,7 @@ def calculate_player_stats(pbp, weekly=False):
     s_type = pbp[['season', 'season_type', 'week']].drop_duplicates()
 
     #Load the player data
-    player_info = load_players()
+    player_info = collect_players()
     #Select specific columns and rename them
     player_info = player_info[[
         'gsis_id', 'display_name', 'short_name', 'position', 'position_group', 'headshot'

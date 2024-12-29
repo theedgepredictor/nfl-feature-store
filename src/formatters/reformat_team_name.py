@@ -1,11 +1,14 @@
-import pandas as pd
-
 ## assignment functions that replaces fastr team names with legacy team names ##
 repl = {
-    'LV' : 'OAK',
-    'SD' : 'LAC',
-    'STL' : 'LAR',
-    'LA' : 'LAR',
+    'OAK': 'LV',  # Oakland Raiders became Las Vegas Raiders
+    'ARZ': 'ARI',  # Arizona Cardinals abbreviation changed
+    'HST': 'HOU',  # Houston Texans abbreviation changed
+    'BLT': 'BAL',  # Baltimore Ravens abbreviation changed
+    'SL': 'LAR',  # St. Louis Rams became Los Angeles Rams
+    'CLV': 'CLE',  # Cleveland Browns abbreviation changed
+    'SD': 'LAC',  # San Diego Chargers became Los Angeles Chargers
+    'LA': 'LAR',
+    'STL': 'LAR',
 }
 
 def team_id_repl(df):
@@ -18,7 +21,8 @@ def team_id_repl(df):
         'posteam', 'defteam', 'penalty_team',
         'side_of_field', 'timeout_team', 'td_team',
         'return_team', 'possession_team',
-        'recent_team', 'opponent_team', 'team1', 'team2'
+        'recent_team', 'opponent_team', 'team1', 'team2',
+        'latest_team', 'draft_team','team','team_abb'
     ]:
         if col in df.columns:
             df[col] = df[col].replace(repl)

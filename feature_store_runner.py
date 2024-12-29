@@ -4,6 +4,7 @@ import pandas as pd
 import pyarrow as pa
 
 from src.feature_stores.event_regular_season_game import make_event_regular_season_feature_store
+from src.feature_stores.player_regular_season_game import make_off_player_regular_season_feature_store
 from src.utils import put_dataframe, get_seasons_to_update
 
 
@@ -12,9 +13,14 @@ event_meta = {
     "start_season": 2002,
     "obj": make_event_regular_season_feature_store
     }
+player_off = {
+    "name":'player/off/regular_season_game',
+    "start_season": 2002,
+    "obj": make_off_player_regular_season_feature_store
+    }
 FEATURE_STORE_METAS = [
-    #player_meta,
-    event_meta
+    event_meta,
+    #player_off,
 ]
 
 
@@ -27,11 +33,18 @@ def main():
         start_season = fs_meta_obj['start_season']
         ## Determine pump mode
         update_seasons = get_seasons_to_update(root_path, feature_store_name)
-        #update_seasons = [2002,2003]
+
+        #update_seasons = [2004, 2005, 2006,2007,2008,2009,2010,2011,2012,2013,2014]
+
         mode = 'refresh' if start_season in update_seasons else 'upsert'
 
         # Use the last 2 seasons for aggregate stats for upsert mode
         load_seasons = update_seasons if mode == 'refresh' else list(range(min(update_seasons) - 2, max(update_seasons)+1))
+
+        if 'player' in fs_meta_obj['name']:
+            # Career stats so we have to load entire history
+            load_seasons = list(range(start_season, max(update_seasons)+1))
+
 
         print(f"Running Feature Store: {feature_store_name} from {min(update_seasons)}-{max(update_seasons)} (loads: {min(load_seasons)}-{max(load_seasons)})")
 

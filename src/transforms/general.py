@@ -6,9 +6,51 @@
 import pandas as pd
 
 from src.extracts.player_stats import collect_weekly_ngs_receiving_data, collect_weekly_ngs_rushing_data, collect_weekly_ngs_passing_data, collect_weekly_espn_player_stats
-from src.extracts.qbr import collect_qbr
 from src.transforms.averages import dynamic_window_rolling_average
 
+
+def _calculate_raw_passer_value(df):
+    ## takes a df, with properly named fields and returns a series w/ VALUE ##
+    ## formula for reference ##
+    ## https://fivethirtyeight.com/methodology/how-our-nfl-predictions-work/ ##
+    ##      -2.2 * Pass Attempts +
+    ##         3.7 * Completions +
+    ##       (Passing Yards / 5) +
+    ##        11.3 * Passing TDs –
+    ##      14.1 * Interceptions –
+    ##          8 * Times Sacked –
+    ##       1.1 * Rush Attempts +
+    ##       0.6 * Rushing Yards +
+    ##        15.9 * Rushing TDs
+    return (
+        -2.2 * df['attempts'] +
+        3.7 * df['completions'] +
+        (df['passing_yards'] / 5) +
+        11.3 * df['passing_tds'] -
+        14.1 * df['interceptions'] -
+        8 * df['sacks'] -
+        1.1 * df['carries'] +
+        0.6 * df['rushing_yards'] +
+        15.9 * df['rushing_tds']
+    )
+
+def _calculate_passer_rating(df):
+    # Step 1: Calculate each component
+    a = ((df['completion_percentage']) - 0.3) * 5
+    b = ((df['yards_per_pass_attempt']) - 3) * 0.25
+    c = (df['passing_tds'] / df['attempts']) * 20
+    d = 2.375 - (df['interceptions'] / df['attempts']) * 25
+
+    # Step 2: Cap each value between 0 and 2.375
+    a = a.clip(0, 2.375)
+    b = b.clip(0, 2.375)
+    c = c.clip(0, 2.375)
+    d = d.clip(0, 2.375)
+
+    # Step 3: Calculate passer rating
+    passer_rating = ((a + b + c + d) / 6) * 100
+
+    return passer_rating
 
 def stat_collection(year, season_type="REG", mode='team'):
     TEAM_STATS = [
@@ -62,6 +104,7 @@ def stat_collection(year, season_type="REG", mode='team'):
         'pass_to_rush_ratio',
         'pass_to_rush_first_down_ratio',
         'yards_per_pass_attempt',
+        'VALUE_ELO',
         'sack_rate',
         'carries',
         'rushing_yards',
@@ -131,7 +174,6 @@ def stat_collection(year, season_type="REG", mode='team'):
         'aggressiveness',
         'max_completed_air_distance',
         'avg_air_yards_to_sticks',
-        'passer_rating',
         #'completion_percentage',
         'expected_completion_percentage',
         'completion_percentage_above_expectation',
@@ -192,6 +234,7 @@ def stat_collection(year, season_type="REG", mode='team'):
     ]
 
     player_stats_df = collect_weekly_espn_player_stats(year, season_type=season_type)
+    player_stats_df = player_stats_df[player_stats_df.season==year].copy()
     ngs_passing_df = collect_weekly_ngs_passing_data([year], season_type=season_type)
     ngs_rushing_df = collect_weekly_ngs_rushing_data([year], season_type=season_type)
     ngs_receiving_df = collect_weekly_ngs_receiving_data([year], season_type=season_type)
@@ -225,6 +268,8 @@ def stat_collection(year, season_type="REG", mode='team'):
     df['fantasy_point_per_play'] = df['fantasy_points'] / df['total_plays']
 
     df['air_yards_per_pass_attempt'] = df['receiving_air_yards'] / df['attempts']
+    df['VALUE_ELO'] = _calculate_raw_passer_value(df)
+    df['passer_rating'] = _calculate_passer_rating(df)
     return df[TEAM_STATS] if mode in ['team', 'opponent'] else df
 
 

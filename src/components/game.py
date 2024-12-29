@@ -2,8 +2,6 @@ import datetime
 import pandas as pd
 from src.extracts.elo import get_qb_elo
 from src.extracts.games import get_schedules
-from src.extracts.pbp import get_play_by_play
-from src.transforms.general import stat_collection
 from src.transforms.targets import event_targets
 from src.transforms.vegas_lines import make_cover_feature
 
@@ -116,6 +114,3 @@ class GameComponent:
         df = df.merge(self.db['elo'], on=['season', 'week', 'away_team', 'home_team'], how='left')
         return df
 
-if __name__ == '__main__':
-    game_component = GameComponent([2024], season_type='REG')
-    df = game_component.run_pipeline()
