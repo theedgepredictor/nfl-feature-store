@@ -46,12 +46,11 @@ def get_qb_elo(seasons, season_type='REG'):
         for week in sorted(season_weeks):
             if not ((elo_df['season'] == season) & (elo_df['week'] == week)).any():
                 if week == 1:
-                    # 1/3 regression for week 1
+                    # 1/3 regression for week 1, use latest available elo_post for each team from previous season
                     prev_season = season - 1
                     prev_season_df = elo_df[elo_df['season'] == prev_season]
                     if not prev_season_df.empty:
-                        last_week = prev_season_df['week'].max()
-                        last_elo = prev_season_df[prev_season_df['week'] == last_week][['team', 'elo_post']]
+                        last_elo = prev_season_df.sort_values(['team', 'week']).groupby('team', as_index=False).last()[['team', 'elo_post']]
                         mean_elo = last_elo['elo_post'].mean()
                         last_elo['elo_pre'] = mean_elo + (last_elo['elo_post'] - mean_elo) * (2/3)
                         last_elo['elo_prob'] = None
@@ -60,16 +59,16 @@ def get_qb_elo(seasons, season_type='REG'):
                         last_elo['week'] = 1
                         elo_df = pd.concat([elo_df, last_elo[['season', 'week', 'team', 'elo_pre', 'elo_prob', 'elo_post']]], ignore_index=True)
                 else:
-                    # For other weeks, use previous week's elo_post as elo_pre
-                    prev_week_df = elo_df[(elo_df['season'] == season) & (elo_df['week'] == week - 1)][['team', 'elo_post']]
+                    # For other weeks, use latest available elo_post for each team from current season
+                    prev_week_df = elo_df[(elo_df['season'] == season) & (elo_df['week'] < week)]
                     if not prev_week_df.empty:
-                        next_elo = prev_week_df.copy()
-                        next_elo['elo_pre'] = next_elo['elo_post']
-                        next_elo['elo_prob'] = None
-                        next_elo['elo_post'] = next_elo['elo_pre']
-                        next_elo['season'] = season
-                        next_elo['week'] = week
-                        elo_df = pd.concat([elo_df, next_elo[['season', 'week', 'team', 'elo_pre', 'elo_prob', 'elo_post']]], ignore_index=True)
+                        latest_elo = prev_week_df.sort_values(['team', 'week']).groupby('team', as_index=False).last()[['team', 'elo_post']]
+                        latest_elo['elo_pre'] = latest_elo['elo_post']
+                        latest_elo['elo_prob'] = None
+                        latest_elo['elo_post'] = latest_elo['elo_pre']
+                        latest_elo['season'] = season
+                        latest_elo['week'] = week
+                        elo_df = pd.concat([elo_df, latest_elo[['season', 'week', 'team', 'elo_pre', 'elo_prob', 'elo_post']]], ignore_index=True)
 
     away_elo_df = elo_df.rename(columns={
         'team': 'away_team',
