@@ -23,20 +23,15 @@ def get_qb_elo(seasons, season_type='REG'):
     elo_df = fix_elo_qb_names(elo_df)
     elo_df = df_rename_fold(elo_df, t1_prefix='1', t2_prefix='2')
     elo_df['is_postseason'] = elo_df.playoff.notnull()
+    
+
+    # Only keep relevant columns and rename
     elo_df = elo_df[[
         'season',
         'week',
         'team',
-        # 'elo_pre',
-        # 'elo_prob',
-        # 'elo_post',
         'qbelo_pre',
-        # 'qb',
-        # 'qb_value_pre',
-        # 'qb_adj',
         'qbelo_prob',
-        # 'qb_game_value',
-        # 'qb_value_post',
         'qbelo_post',
     ]].rename(columns={
         'qbelo_pre': 'elo_pre',
@@ -44,6 +39,37 @@ def get_qb_elo(seasons, season_type='REG'):
         'qbelo_post': 'elo_post',
     })
     elo_df['week'] = elo_df['week'].astype(int)
+
+    # Project elos for any week with scheduled games but missing elo data
+    for season in seasons:
+        season_weeks = df[df['season'] == season]['week'].unique()
+        for week in sorted(season_weeks):
+            if not ((elo_df['season'] == season) & (elo_df['week'] == week)).any():
+                if week == 1:
+                    # 1/3 regression for week 1
+                    prev_season = season - 1
+                    prev_season_df = elo_df[elo_df['season'] == prev_season]
+                    if not prev_season_df.empty:
+                        last_week = prev_season_df['week'].max()
+                        last_elo = prev_season_df[prev_season_df['week'] == last_week][['team', 'elo_post']]
+                        mean_elo = last_elo['elo_post'].mean()
+                        last_elo['elo_pre'] = mean_elo + (last_elo['elo_post'] - mean_elo) * (2/3)
+                        last_elo['elo_prob'] = None
+                        last_elo['elo_post'] = last_elo['elo_pre']
+                        last_elo['season'] = season
+                        last_elo['week'] = 1
+                        elo_df = pd.concat([elo_df, last_elo[['season', 'week', 'team', 'elo_pre', 'elo_prob', 'elo_post']]], ignore_index=True)
+                else:
+                    # For other weeks, use previous week's elo_post as elo_pre
+                    prev_week_df = elo_df[(elo_df['season'] == season) & (elo_df['week'] == week - 1)][['team', 'elo_post']]
+                    if not prev_week_df.empty:
+                        next_elo = prev_week_df.copy()
+                        next_elo['elo_pre'] = next_elo['elo_post']
+                        next_elo['elo_prob'] = None
+                        next_elo['elo_post'] = next_elo['elo_pre']
+                        next_elo['season'] = season
+                        next_elo['week'] = week
+                        elo_df = pd.concat([elo_df, next_elo[['season', 'week', 'team', 'elo_pre', 'elo_prob', 'elo_post']]], ignore_index=True)
 
     away_elo_df = elo_df.rename(columns={
         'team': 'away_team',
