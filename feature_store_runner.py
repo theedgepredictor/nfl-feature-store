@@ -20,7 +20,7 @@ player_off = {
     }
 FEATURE_STORE_METAS = [
     event_meta,
-    #player_off,
+    player_off,
 ]
 
 

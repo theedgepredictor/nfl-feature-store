@@ -197,7 +197,7 @@ def get_preseason_players(season):
     df = pd.concat([df, rookie_approx_value_df], ignore_index=True)
 
     df = df[df.position_group == 'quarterback'].copy()
-    return df.drop_duplicates(subset=['player_id'], keep='first').drop(columns=[
+    df = df.drop_duplicates(subset=['player_id'], keep='first').drop(columns=[
         'team',
         'week',
         'position',
@@ -206,6 +206,22 @@ def get_preseason_players(season):
         'position_group',
         'high_pos_group',
     ])
+    df = df[[
+        'season',
+        'player_id',
+        'madden_id',
+        'years_exp',
+         'is_rookie', 'last_season_av',  'overallrating', 'agility',
+         'acceleration', 'speed', 'stamina', 'strength', 'toughness', 'injury',
+         'awareness', 'jumping', 'trucking', 'throwpower', 'throwaccuracyshort',
+         'throwaccuracymid', 'throwaccuracydeep', 'playaction', 'throwonrun',
+         'carrying', 'ballcarriervision', 'stiffarm', 'spinmove', 'jukemove',
+         'catching', 'shortrouterunning', 'midrouterunning', 'deeprouterunning',
+         'spectacularcatch', 'catchintraffic', 'release', 'runblocking',
+         'passblocking', 'impactblocking', 'mancoverage', 'zonecoverage',
+         'tackle', 'hitpower', 'press', 'pursuit', 'kickaccuracy', 'kickpower',
+         'return']]
+    return df
 
 def make_player_avg_group_features(data, group_features_dict, mode='season_avg'):
     """

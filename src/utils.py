@@ -6,6 +6,7 @@ import os
 from typing import List
 import pyarrow as pa
 from bs4 import BeautifulSoup
+from pandas.core.dtypes.common import is_numeric_dtype
 
 
 def get_dataframe(path: str, columns: List = None):
@@ -100,7 +101,7 @@ def find_year_for_season( date: datetime.datetime = None):
     """
     SEASON_START_MONTH = {
 
-        "NFL": {'start': 8, 'wrap': False},
+        "NFL": {'start': 6, 'wrap': False},
     }
     if date is None:
         today = datetime.datetime.utcnow()

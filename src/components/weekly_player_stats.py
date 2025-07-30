@@ -4,13 +4,13 @@ import pandas as pd
 
 from src.extracts.games import get_schedules
 from src.extracts.pbp import get_play_by_play
-from src.extracts.player_stats import collect_roster, collect_injuries
+from src.extracts.player_stats import collect_roster, collect_injuries, get_player_fantasy_projections
 from src.formatters.general import df_rename_fold
 from src.transforms.general import stat_collection
 from src.transforms.player import make_player_avg_group_features
 
 
-class PlayerStatComponent:
+class WeeklyPlayerStatComponent:
     def __init__(self, load_seasons, season_type=None, group = 'off'):
         self.load_seasons = load_seasons
         self.season_type = season_type
@@ -188,5 +188,5 @@ class PlayerStatComponent:
 
 
 if __name__ == '__main__':
-    player_stat_component = PlayerStatComponent([2002,2003], season_type='REG', group='off')
+    player_stat_component = WeeklyPlayerStatComponent([2002,2003], season_type='REG', group='off')
     df = player_stat_component.run_pipeline()

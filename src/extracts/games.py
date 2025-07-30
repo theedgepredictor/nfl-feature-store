@@ -14,4 +14,5 @@ def get_schedules(seasons, season_type='REG'):
     if season_type == 'REG':
         scheds = scheds[scheds.game_type=='REG'].copy()
     scheds = team_id_repl(scheds)
+    scheds['game_id'] = scheds['season'].astype(str) + '_' + scheds['week'].astype(str) + '_' + scheds['home_team'] + '_' + scheds['away_team']
     return scheds

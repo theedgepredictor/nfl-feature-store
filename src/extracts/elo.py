@@ -7,6 +7,10 @@ from src.formatters.reformat_team_name import team_id_repl
 
 
 def get_elo(season):
+    """
+    Fetches Elo ratings for a given NFL season from a remote parquet file.
+    Returns a DataFrame of Elo ratings for all teams.
+    """
     try:
         df = pd.read_parquet(f'https://github.com/theedgepredictor/elo-rating/raw/main/data/elo/football/nfl/{season}.parquet')
         return df
@@ -15,6 +19,11 @@ def get_elo(season):
 
 
 def get_qb_elo(seasons, season_type='REG'):
+    """
+    Fetches and projects QB Elo ratings for the given seasons.
+    If future weeks are missing, projects Elo using regression to mean and previous week's values.
+    Returns a DataFrame of game-level QB Elo features.
+    """
     df = get_schedules(seasons, season_type=None)[['game_id', 'game_type', 'season', 'week', 'home_team', 'away_team']]
 
     elo_df = pd.read_csv("https://raw.githubusercontent.com/greerreNFL/nfeloqb/main/qb_elos.csv")

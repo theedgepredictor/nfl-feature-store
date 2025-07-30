@@ -7,8 +7,7 @@ import pandas as pd
 ## Loaders
 ###########################################################
 from src.components.game import GameComponent
-from src.components.player import GamePlayerComponent
-from src.components.player_stat import PlayerStatComponent
+from src.components.weekly_player_stats import WeeklyPlayerStatComponent
 from src.components.team import TeamComponent
 from src.transforms.ranks import make_rank_cols
 from src.utils import get_dataframe
@@ -19,7 +18,7 @@ def make_off_player_regular_season_feature_store(load_seasons):
     #game_player_df = game_player_component.run_pipeline()
     #del game_player_component
 
-    player_stat_component = PlayerStatComponent(load_seasons, season_type='REG', group='off')
+    player_stat_component = WeeklyPlayerStatComponent(load_seasons, season_type='REG', group='off')
     off_player_df = player_stat_component.run_pipeline()
     del player_stat_component
 

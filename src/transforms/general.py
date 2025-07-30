@@ -5,7 +5,7 @@
 #####################################################################
 import pandas as pd
 
-from src.extracts.player_stats import collect_weekly_ngs_receiving_data, collect_weekly_ngs_rushing_data, collect_weekly_ngs_passing_data, collect_weekly_espn_player_stats
+from src.extracts.player_stats import collect_weekly_ngs_receiving_data, collect_weekly_ngs_rushing_data, collect_weekly_ngs_passing_data, collect_weekly_espn_player_stats, get_player_fantasy_projections
 from src.transforms.averages import dynamic_window_rolling_average
 
 
@@ -239,9 +239,12 @@ def stat_collection(year, season_type="REG", mode='team'):
     ngs_rushing_df = collect_weekly_ngs_rushing_data([year], season_type=season_type)
     ngs_receiving_df = collect_weekly_ngs_receiving_data([year], season_type=season_type)
 
+    #off_projections_df = get_player_fantasy_projections(year, mode=mode, group="OFF").drop(columns=['name','team'])
+
     df = pd.merge(player_stats_df, ngs_passing_df, on=['player_id', 'season', 'week', 'recent_team'], how='left')
     df = pd.merge(df, ngs_rushing_df, on=['player_id', 'season', 'week', 'recent_team'], how='left')
     df = pd.merge(df, ngs_receiving_df, on=['player_id', 'season', 'week', 'recent_team'], how='left')
+    #df = pd.merge(df, off_projections_df, on=['player_id', 'season', 'week'], how='left')
 
     if mode in ['team', 'opponent']:
         df = df.groupby(['season', 'week', 'recent_team' if mode == 'team' else 'opponent_team'])[passing_stats + rushing_stats + receiving_stats + general_stats].sum().reset_index()

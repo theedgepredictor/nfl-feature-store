@@ -1,7 +1,5 @@
 import datetime
 import pandas as pd
-from src.extracts.elo import get_qb_elo
-from src.extracts.games import get_schedules
 from src.extracts.pbp import get_play_by_play
 from src.transforms.epa import make_rushing_epa, make_passing_epa
 from src.transforms.game import make_weekly_avg_group_features
@@ -12,13 +10,23 @@ from src.transforms.score import make_qtr_score_group_features, make_score_featu
 
 
 class TeamComponent:
+    """
+    Aggregates team-level features, including rolling stats and advanced metrics, for team-based analysis and modeling.
+    """
     def __init__(self, load_seasons, season_type=None):
+        """
+        Initialize the TeamComponent with seasons and season type.
+        """
         self.load_seasons = load_seasons
         self.season_type = season_type
         self.db = self.extract()
         self.df = self.run_pipeline()
 
     def extract(self):
+        """
+        Extracts all relevant team-level data for the given seasons.
+        Returns a dictionary of DataFrames.
+        """
         """
         Extracting play by play data, schedules, elo and weekly offensive and defensive player metrics (rolled up into total team metrics).
         Each of these data groups are extracted and loaded for the given seasons and filtered for the regular season
@@ -42,6 +50,10 @@ class TeamComponent:
         }
 
     def run_pipeline(self):
+        """
+        Main pipeline to process and merge team-level features.
+        Returns a DataFrame of enriched team features.
+        """
         epa = make_score_feature(self.db['pbp'])
         a = make_weekly_avg_group_features(self.db['team_stats'], self.db['opp_stats'])
         b = make_rushing_epa(self.db['pbp'])

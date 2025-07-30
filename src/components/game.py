@@ -7,7 +7,14 @@ from src.transforms.vegas_lines import make_cover_feature
 
 
 class GameComponent:
+    """
+    Builds game-level feature stores, including rolling averages for EPA, points, Vegas lines, and Elo ratings.
+    Used for event-based modeling and downstream analytics.
+    """
     def __init__(self, load_seasons, season_type=None):
+        """
+        Initialize the GameComponent with seasons and season type.
+        """
         self.load_seasons = load_seasons
         self.season_type = season_type
         self.db = self.extract()
@@ -15,13 +22,16 @@ class GameComponent:
 
     def extract(self):
         """
+        Extracts all relevant game-level data for the given seasons.
+        Returns a dictionary of DataFrames.
+        """
+        """
         Extracting play by play data, schedules, elo and weekly offensive and defensive player metrics (rolled up into total team metrics).
         Each of these data groups are extracted and loaded for the given seasons and filtered for the regular season
         :param load_seasons:
         :return:
         """
         print(f"    Loading schedule data {datetime.datetime.now()}")
-
         schedule = get_schedules(self.load_seasons, self.season_type)
         elo = get_qb_elo(self.load_seasons, self.season_type)
 
@@ -31,6 +41,10 @@ class GameComponent:
         }
 
     def run_pipeline(self):
+        """
+        Main pipeline to process and merge game-level features.
+        Returns a DataFrame of enriched game features.
+        """
         df = self._game_pipeline()
         groups = [
             self._target_pipeline(),
@@ -70,6 +84,10 @@ class GameComponent:
 
     def _game_pipeline(self):
         """
+        Internal pipeline for building game-level features (rolling stats, EPA, etc.).
+        Returns a DataFrame of game features.
+        """
+        """
 
         :return:
         """
@@ -88,6 +106,10 @@ class GameComponent:
         return df
 
     def _lines_pipeline(self):
+        """
+        Internal pipeline for processing Vegas lines and related features.
+        Returns a DataFrame of Vegas line features.
+        """
         df = self.db['games'][
             [
                 'season',
@@ -103,14 +125,24 @@ class GameComponent:
         return df
 
     def _target_pipeline(self):
+        """
+        Internal pipeline for building target features for modeling.
+        Returns a DataFrame of target features.
+        """
         return event_targets(self.db['games'].copy())
 
     def _add_rolling_cover_pipeline(self, df):
+        """
+        Adds rolling cover features (e.g., rolling average Vegas cover) to the game DataFrame.
+        """
         away_a, home_a = make_cover_feature(df)
         df = df.merge(away_a, on=['season', 'week', 'away_team'], how='left').merge(home_a, on=['season', 'week', 'home_team'], how='left')
         return df
 
     def _add_elo_pipeline(self, df):
+        """
+        Adds Elo rating features to the game DataFrame.
+        """
         df = df.merge(self.db['elo'], on=['season', 'week', 'away_team', 'home_team'], how='left')
         return df
 
