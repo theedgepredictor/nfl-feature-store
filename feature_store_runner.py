@@ -1,12 +1,7 @@
-import os
+from nfl_data_loader.utils.utils import get_seasons_to_update, put_dataframe
 
-import pandas as pd
-import pyarrow as pa
-
-from src.feature_stores.event_regular_season_game import make_event_regular_season_feature_store
-from src.feature_stores.player_regular_season_game import make_off_player_regular_season_feature_store
-from src.utils import put_dataframe, get_seasons_to_update
-
+from src.pipelines.events.event_regular_season_game import make_event_regular_season_feature_store
+from src.pipelines.players.player_regular_season_game import make_off_player_regular_season_feature_store
 
 event_meta = {
     "name":'event/regular_season_game',

@@ -6,11 +6,7 @@ import pandas as pd
 ###########################################################
 ## Loaders
 ###########################################################
-from src.components.game import GameComponent
-from src.components.weekly_player_stats import WeeklyPlayerStatComponent
-from src.components.team import TeamComponent
-from src.transforms.ranks import make_rank_cols
-from src.utils import get_dataframe
+from nfl_data_loader.workflows.components.players.weekly_stats import WeeklyPlayerStatComponent
 
 
 def make_off_player_regular_season_feature_store(load_seasons):
