@@ -7,4 +7,4 @@ beautifulsoup4==4.12.3
 rapidfuzz
 scikit-learn==1.4.0
 espn-api
-nfl-data-loader>=0.0.2
+nfl-data-loader>=0.0.3
