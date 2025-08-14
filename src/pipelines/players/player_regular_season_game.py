@@ -28,5 +28,5 @@ def make_off_player_regular_season_feature_store(load_seasons):
     return off_player_df
 
 if __name__ == '__main__':
-    df = make_off_player_regular_season_feature_store([2022,2023,2024])
+    df = make_off_player_regular_season_feature_store([2022,2023,2024,2025])
 

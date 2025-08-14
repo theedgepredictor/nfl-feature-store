@@ -1,6 +1,7 @@
 from nfl_data_loader.utils.utils import get_seasons_to_update, put_dataframe
 
 from src.pipelines.events.event_regular_season_game import make_event_regular_season_feature_store
+from src.pipelines.fantasy.fantasy_football import make_fantasy_feature_store
 from src.pipelines.players.player_regular_season_game import make_off_player_regular_season_feature_store
 
 event_meta = {
@@ -13,9 +14,15 @@ player_off = {
     "start_season": 2002,
     "obj": make_off_player_regular_season_feature_store
     }
+fantasy = {
+    "name":'player/fantasy',
+    "start_season": 2019,
+    "obj": make_fantasy_feature_store
+    }
 FEATURE_STORE_METAS = [
     event_meta,
-    player_off,
+    #player_off,
+    fantasy
 ]
 
 
@@ -28,6 +35,8 @@ def main():
         start_season = fs_meta_obj['start_season']
         ## Determine pump mode
         update_seasons = get_seasons_to_update(root_path, feature_store_name)
+        if min(update_seasons) < start_season:
+            update_seasons = [i for i in update_seasons if i >= start_season]
 
         #update_seasons = [2004, 2005, 2006,2007,2008,2009,2010,2011,2012,2013,2014]
 
