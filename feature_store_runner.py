@@ -21,7 +21,7 @@ fantasy = {
     }
 FEATURE_STORE_METAS = [
     event_meta,
-    #player_off,
+    player_off,
     fantasy
 ]
 
@@ -42,13 +42,8 @@ def main():
 
         mode = 'refresh' if start_season in update_seasons else 'upsert'
 
-        # Use the last 2 seasons for aggregate stats for upsert mode
-        load_seasons = update_seasons if mode == 'refresh' else list(range(min(update_seasons) - 2, max(update_seasons)+1))
-
-        if 'player' in fs_meta_obj['name']:
-            # Career stats so we have to load entire history
-            load_seasons = list(range(start_season, max(update_seasons)+1))
-
+        # Use the last season for aggregate stats for upsert mode
+        load_seasons = update_seasons if mode == 'refresh' else list(range(min(update_seasons) - 1, max(update_seasons)+1))
 
         print(f"Running Feature Store: {feature_store_name} from {min(update_seasons)}-{max(update_seasons)} (loads: {min(load_seasons)}-{max(load_seasons)})")
 
