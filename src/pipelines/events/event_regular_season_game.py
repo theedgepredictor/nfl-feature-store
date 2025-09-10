@@ -28,7 +28,7 @@ def make_event_regular_season_feature_store(load_seasons):
         team_features_df.rename(columns={'team': 'away_team'}),
         on=['away_team', 'season', 'week'],
         how='left',
-        suffixes=('_home', '_away')
+        suffix=('_home', '_away')
     )
 
     # Suffix to prefix
