@@ -2,18 +2,20 @@ from nfl_data_loader.utils.utils import get_seasons_to_update, put_dataframe
 
 from src.pipelines.events.event_regular_season_game import make_event_regular_season_feature_store
 from src.pipelines.fantasy.fantasy_football import make_fantasy_feature_store
-from src.pipelines.players.player_regular_season_game import make_off_player_regular_season_feature_store
+#from src.pipelines.players.player_regular_season_game import make_off_player_regular_season_feature_store
 
 event_meta = {
     "name":'event/regular_season_game',
     "start_season": 2002,
     "obj": make_event_regular_season_feature_store
     }
+"""
 player_off = {
     "name":'player/off/regular_season_game',
     "start_season": 2002,
     "obj": make_off_player_regular_season_feature_store
     }
+"""
 fantasy = {
     "name":'player/fantasy',
     "start_season": 2019,
@@ -21,7 +23,7 @@ fantasy = {
     }
 FEATURE_STORE_METAS = [
     event_meta,
-    player_off,
+    #player_off,
     fantasy
 ]
 
