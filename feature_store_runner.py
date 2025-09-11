@@ -22,7 +22,7 @@ fantasy = {
     "obj": make_fantasy_feature_store
     }
 FEATURE_STORE_METAS = [
-    event_meta,
+    #event_meta,
     #player_off,
     fantasy
 ]

@@ -71,22 +71,8 @@ def make_event_regular_season_feature_store(load_seasons):
     if df.season.min() <= 2002:
         df = df[~((df.season == df.season.min()) & (df.week == df.week.min()))].copy()
 
-    ### Handle Rank Columns
-    import traceback
-    try:
-        rank_df = make_rank_cols(df.copy())
-    except Exception as e:
-        print("DEBUG: make_rank_cols raised an exception:", e)
-        traceback.print_exc()
-        raise
+    rank_df = make_rank_cols(df.copy())
 
-    # Extra debug if rank_df isn't what we expect
-    try:
-        print("DEBUG: rank_df type:", type(rank_df))
-        if hasattr(rank_df, 'shape'):
-            print("DEBUG: rank_df shape:", rank_df.shape)
-    except Exception:
-        pass
 
     df = df.merge(rank_df, on=['season', 'week', 'away_team', 'home_team'], how='left')
     return df
